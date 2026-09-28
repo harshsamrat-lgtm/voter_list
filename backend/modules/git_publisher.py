@@ -338,6 +338,45 @@ class GitPublisher:
         # Git Push
         push_remote_url = f"https://github.com/{DEFAULT_REPO}.git"
         if token:
+            # Check if repository exists on GitHub, and auto-create it if 404
+            try:
+                check_repo_req = urllib.request.Request(
+                    f"https://api.github.com/repos/{DEFAULT_REPO}",
+                    headers={
+                        "Authorization": f"token {token}",
+                        "User-Agent": "UP-Voter-Seva-Publisher",
+                        "Accept": "application/vnd.github.v3+json"
+                    }
+                )
+                try:
+                    with urllib.request.urlopen(check_repo_req, timeout=10.0) as _:
+                        pass
+                except urllib.error.HTTPError as repo_err:
+                    if repo_err.code == 404:
+                        logs.append(f"GitHub पर '{DEFAULT_REPO}' नहीं मिली। स्वतः नई रिपॉजिटरी बनाई जा रही है...")
+                        repo_name = DEFAULT_REPO.split("/")[-1]
+                        create_payload = {
+                            "name": repo_name,
+                            "description": "उत्तर प्रदेश मतदाता सेवा (UP Voter Seva) - Official Application & OTA Updates",
+                            "private": False,
+                            "has_issues": True
+                        }
+                        create_req = urllib.request.Request(
+                            "https://api.github.com/user/repos",
+                            data=json.dumps(create_payload).encode('utf-8'),
+                            headers={
+                                "Authorization": f"token {token}",
+                                "User-Agent": "UP-Voter-Seva-Publisher",
+                                "Accept": "application/vnd.github.v3+json",
+                                "Content-Type": "application/json"
+                            },
+                            method="POST"
+                        )
+                        with urllib.request.urlopen(create_req, timeout=15.0) as cr_resp:
+                            logs.append(f"✅ GitHub पर नई रिपॉजिटरी '{DEFAULT_REPO}' सफलतापूर्वक बना दी गई!")
+            except Exception as ex:
+                logs.append(f"रिपॉजिटरी सत्यापन सूचना: {str(ex)}")
+
             # Use authenticated URL
             push_remote_url = f"https://{token}@github.com/{DEFAULT_REPO}.git"
 
