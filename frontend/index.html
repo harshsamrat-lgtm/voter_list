@@ -1722,6 +1722,10 @@
                                 <i data-lucide="clipboard-check" style="width: 16px; height: 16px;"></i>
                                 <span>📋 फॉर्म 6 फील्ड कार्य सूची</span>
                             </button>
+                            <button id="btnRefreshSurveyCloud" type="button" class="btn-secondary" onclick="loadSurveyStreets()" style="height: 42px; padding: 0 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; background: #0284C7; color: white; border-color: #0284C7; white-space: nowrap;" title="फायरबेस क्लाउड से ताज़ा सर्वे डेटा सिंक करें">
+                                <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+                                <span>🔄 क्लाउड सिंक</span>
+                            </button>
                             <button id="btnExportStreetAuditExcel" class="btn-secondary" style="height: 42px; padding: 0 16px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; background: #1E293B; color: white; border-color: #1E293B; white-space: nowrap;" title="फॉर्म 6 एवं डोर-टू-डोर सत्यापन की एक्सेल रिपोर्ट डाउनलोड करें">
                                 <i data-lucide="file-spreadsheet" style="width: 16px; height: 16px; color: #34D399;"></i>
                                 <span>एक्सेल डाउनलोड</span>
@@ -1734,12 +1738,12 @@
                         <div style="display: flex; align-items: flex-start; gap: 12px;">
                             <i data-lucide="alert-triangle" style="width: 20px; height: 20px; flex-shrink: 0; color: #DC2626; margin-top: 2px;"></i>
                             <div>
-                                <strong style="font-size: 0.95rem;">NPPropertyServey सर्वर कनेक्ट नहीं हुआ:</strong>
+                                <strong style="font-size: 0.95rem;">सर्वे डेटा कनेक्शन स्थिति:</strong>
                                 <p style="margin: 4px 0 8px 0; font-size: 0.88rem; color: #7F1D1D;" id="surveyOfflineMsg">
-                                    कृपया सुनिश्चित करें कि NPPropertyServey ऐप पोर्ट 9002 पर सक्रिय है (कमांड: 'npm run dev')।
+                                    सर्वे डेटा लोड हो रहा है...
                                 </p>
-                                <button type="button" class="btn-secondary" id="btnRetrySurveyConnect" style="padding: 4px 12px; font-size: 0.82rem; height: 32px;">
-                                    पुनः प्रयास करें (Retry)
+                                <button type="button" class="btn-secondary" id="btnRetrySurveyConnect" onclick="loadSurveyStreets()" style="padding: 4px 14px; font-size: 0.85rem; height: 34px; cursor: pointer;">
+                                    🔄 पुनः प्रयास करें (Retry)
                                 </button>
                             </div>
                         </div>

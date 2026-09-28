@@ -6689,7 +6689,8 @@ async function loadSurveyStreets() {
 
         if (offlineAlert) offlineAlert.style.display = 'none';
         if (statusBadge) {
-            statusBadge.innerHTML = '<span style="width: 8px; height: 8px; border-radius: 50%; background: #34D399; display: inline-block;"></span> NP सर्वे API कनेक्टेड';
+            const label = data.sourceLabel || (data.source === 'firebase_cloud' ? '🟢 लाइव क्लाउड सर्वे (Firestore)' : '🟢 NP सर्वे कनेक्टेड');
+            statusBadge.innerHTML = `<span style="width: 8px; height: 8px; border-radius: 50%; background: #34D399; display: inline-block;"></span> ${label}`;
             statusBadge.style.background = 'rgba(255,255,255,0.22)';
         }
 
