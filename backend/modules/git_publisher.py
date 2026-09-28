@@ -320,8 +320,8 @@ class GitPublisher:
             with open(BASE_DIR / ".gitignore", "w", encoding="utf-8") as gf:
                 gf.write("data/\n*.db*\n*.enc\nruntime/\ndist_output/\ndist_staging/\n*.exe\n*.zip\n__pycache__/\n")
 
-        # Git Add: Stage components safely
-        stage_targets = ["version.json", "frontend", "backend", "scripts", ".gitignore", "README.md", "requirements.txt", ".github"]
+        # Git Add: Stage components safely (excluding .github workflows so standard 'repo' PAT works seamlessly)
+        stage_targets = ["version.json", "frontend", "backend", "scripts", ".gitignore", "README.md", "requirements.txt"]
         staged_count = 0
         for tgt in stage_targets:
             if (BASE_DIR / tgt).exists():

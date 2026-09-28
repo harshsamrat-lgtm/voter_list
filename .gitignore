@@ -51,4 +51,5 @@ Thumbs.db
 # IDE and Editor files
 .vscode/
 .idea/
+.github/
 
