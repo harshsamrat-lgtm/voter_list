@@ -3,7 +3,7 @@
 
 #define MyAppName "उत्तर प्रदेश मतदाता सेवा"
 #define MyAppEnglishName "UP Voter Service"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "UP Voter Tech"
 #define MyAppExeName "start_app.bat"
 #define MyIconFile "dist_staging\app_icon.ico"

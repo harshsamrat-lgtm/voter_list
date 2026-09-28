@@ -204,6 +204,12 @@ class GitPublisher:
         """
         logs = []
         token = (github_pat_token or "").strip() or cls.get_stored_github_token()
+        if not token:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=400,
+                detail="GitHub Personal Access Token (PAT) आवश्यक है। कृपया 'repo' स्कोप के साथ टोकन दर्ज करें।"
+            )
         if remember_token and github_pat_token:
             cls.save_github_token(github_pat_token.strip())
 
@@ -274,6 +280,8 @@ class GitPublisher:
         # 4. Git Automation
         def run_git(cmd: str) -> Tuple[bool, str]:
             try:
+                env = os.environ.copy()
+                env["GIT_TERMINAL_PROMPT"] = "0"
                 res = subprocess.run(
                     cmd,
                     shell=True,
@@ -282,12 +290,19 @@ class GitPublisher:
                     stderr=subprocess.PIPE,
                     text=True,
                     encoding="utf-8",
-                    errors="replace"
+                    errors="replace",
+                    env=env,
+                    timeout=60
                 )
                 output = (res.stdout + "\n" + res.stderr).strip()
                 return (res.returncode == 0, output)
             except Exception as e:
                 return (False, str(e))
+
+        # Check git repo existence
+        if not (BASE_DIR / ".git").exists():
+            run_git("git init")
+            run_git("git branch -M main")
 
         # Check user config
         run_git("git config user.name")
