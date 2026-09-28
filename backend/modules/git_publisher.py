@@ -315,10 +315,20 @@ class GitPublisher:
         run_git("git remote remove origin")
         run_git(f"git remote add origin https://github.com/{DEFAULT_REPO}.git")
 
-        # Git Add
-        ok_add, msg_add = run_git("git add version.json frontend backend scripts .gitignore .github")
-        if not ok_add:
-            logs.append(f"चेतावनी (git add): {msg_add}")
+        # Ensure .gitignore exists to prevent sensitive files from being pushed
+        if not (BASE_DIR / ".gitignore").exists():
+            with open(BASE_DIR / ".gitignore", "w", encoding="utf-8") as gf:
+                gf.write("data/\n*.db*\n*.enc\nruntime/\ndist_output/\ndist_staging/\n*.exe\n*.zip\n__pycache__/\n")
+
+        # Git Add: Stage components safely
+        stage_targets = ["version.json", "frontend", "backend", "scripts", ".gitignore", "README.md", "requirements.txt", ".github"]
+        staged_count = 0
+        for tgt in stage_targets:
+            if (BASE_DIR / tgt).exists():
+                ok_t, _ = run_git(f'git add "{tgt}"')
+                if ok_t:
+                    staged_count += 1
+        logs.append(f"Git स्टेजिंग पूर्ण ({staged_count} घटक ट्रैक किए गए)")
 
         # Git Commit
         commit_msg = f"Release v{target_version}: {notes or 'In-app OTA update'}"

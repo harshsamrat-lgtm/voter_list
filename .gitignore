@@ -11,6 +11,8 @@ ENV/
 # Output and build packages
 dist_staging/
 dist_output/
+runtime/
+unins*
 *.exe
 *.zip
 *.tar.gz
