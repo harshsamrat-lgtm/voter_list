@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>सॉफ्टवेयर एक्टिवेशन व व्यवस्थापक सेटअप — उत्तर प्रदेश मतदाता सेवा</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #FDF8F5;
+            --bg-surface: #FFFFFF;
+            --bg-card: rgba(255, 255, 255, 0.98);
+            --border-subtle: #FED7AA;
+            --border-accent: #FDBA74;
+            --border-focus: #EA580C;
+            --text-primary: #1C120C;
+            --text-secondary: #6B4F3B;
+            --text-muted: #9A7B66;
+            --primary: #EA580C;
+            --primary-hover: #C2410C;
+            --primary-glow: rgba(234, 88, 12, 0.25);
+            --accent: #F59E0B;
+            --emerald: #059669;
+            --rose: #DC2626;
+            --radius-md: 12px;
+            --radius-lg: 18px;
+            --radius-xl: 24px;
+            --shadow-card: 0 10px 30px -5px rgba(234, 88, 12, 0.12), 0 4px 10px rgba(0, 0, 0, 0.04);
+            --font-sans: 'Inter', 'Noto Sans Devanagari', sans-serif;
+            --font-heading: 'Outfit', 'Noto Sans Devanagari', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: linear-gradient(135deg, #FFF7ED 0%, #FDF8F5 50%, #FFEDD5 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--text-primary);
+        }
+
+        .activation-container {
+            width: 100%;
+            max-width: 540px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-accent);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-card);
+            padding: 36px 32px;
+            backdrop-filter: blur(12px);
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 22px;
+        }
+
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #FFF7ED;
+            border: 1px solid var(--border-subtle);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .header h1 {
+            font-family: var(--font-heading);
+            font-size: 1.65rem;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+
+        /* 2-Step Progress Indicator */
+        .steps-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            gap: 10px;
+        }
+
+        .step-bubble {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: #F1F5F9;
+            color: #64748B;
+            transition: all 0.25s;
+        }
+
+        .step-bubble.active {
+            background: #FFF7ED;
+            color: var(--primary);
+            border: 1px solid var(--border-accent);
+        }
+
+        .step-bubble.completed {
+            background: #ECFDF5;
+            color: #059669;
+            border: 1px solid #A7F3D0;
+        }
+
+        .step-separator {
+            width: 24px;
+            height: 2px;
+            background: #E2E8F0;
+        }
+
+        .hwid-card {
+            background: #FFF7ED;
+            border: 1px dashed var(--border-accent);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            margin-bottom: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .hwid-label {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .hwid-value {
+            font-family: var(--font-mono);
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 0.05em;
+        }
+
+        .btn-copy {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            padding: 7px 12px;
+            border-radius: var(--radius-md);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-copy:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: #FFF7ED;
+        }
+
+        .input-group {
+            margin-bottom: 18px;
+            text-align: left;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 7px;
+        }
+
+        .key-input {
+            width: 100%;
+            padding: 13px 15px;
+            font-family: var(--font-mono);
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--primary);
+            background: var(--bg-surface);
+            border: 1.5px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            outline: none;
+            transition: all 0.2s;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .key-input.text-input {
+            font-family: var(--font-sans) !important;
+            font-size: 0.95rem !important;
+            font-weight: 500 !important;
+            color: var(--text-primary) !important;
+            text-align: left !important;
+            text-transform: none !important;
+            letter-spacing: normal !important;
+        }
+
+        .key-input:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .btn-activate {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary) 0%, #D97706 100%);
+            border: none;
+            border-radius: var(--radius-md);
+            color: #FFFFFF;
+            font-family: var(--font-sans);
+            font-size: 1.02rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(234, 88, 12, 0.3);
+        }
+
+        .btn-activate:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(234, 88, 12, 0.4);
+        }
+
+        .btn-activate:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        .status-alert {
+            display: none;
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            font-size: 0.88rem;
+            line-height: 1.4;
+            margin-top: 18px;
+            font-weight: 500;
+        }
+
+        .status-alert.error {
+            display: block;
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            color: #991B1B;
+        }
+
+        .status-alert.success {
+            display: block;
+            background: #F0FDF4;
+            border: 1px solid #BBF7D0;
+            color: #166534;
+        }
+
+        .status-alert.info {
+            display: block;
+            background: #EFF6FF;
+            border: 1px solid #BFDBFE;
+            color: #1E40AF;
+        }
+
+        .footer-note {
+            margin-top: 24px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border-subtle);
+            text-align: center;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .footer-note strong {
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2.5px solid rgba(255, 255, 255, 0.35);
+            border-radius: 50%;
+            border-top-color: #FFFFFF;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="activation-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="brand-badge">
+                <span>🛡️</span> आधिकारिक सुरक्षा प्रमाणीकरण
+            </div>
+            <h1 id="pageTitle">मतदाता सेवा एक्टिवेशन</h1>
+            <p id="pageSubtitle">इस कंप्यूटर पर सॉफ़्टवेयर प्रारंभ करने हेतु अपनी अधिकृत सुरक्षा कुंजी (License Key) दर्ज करें।</p>
+        </div>
+
+        <!-- 2-Step Progress Indicator -->
+        <div class="steps-container">
+            <div class="step-bubble active" id="stepBubble1">
+                <span id="stepIcon1">1</span>
+                <span>सुरक्षा KEY</span>
+            </div>
+            <div class="step-separator"></div>
+            <div class="step-bubble" id="stepBubble2">
+                <span id="stepIcon2">2</span>
+                <span>व्यवस्थापक (Admin) खाता</span>
+            </div>
+        </div>
+
+        <!-- STEP 1: License KEY & HWID Section -->
+        <div id="step1Section">
+            <!-- Hardware ID Display Box -->
+            <div class="hwid-card">
+                <div>
+                    <div class="hwid-label">कंप्यूटर मशीन पहचान (Machine HWID)</div>
+                    <div class="hwid-value" id="hwidDisplay">लोड हो रहा है...</div>
+                </div>
+                <button class="btn-copy" id="btnCopyHwid" onclick="copyHwid()">
+                    <span id="copyIcon">📋</span> <span id="copyText">कॉपी करें</span>
+                </button>
+            </div>
+
+            <!-- License Key Input Form -->
+            <form id="activationForm" onsubmit="handleActivation(event)">
+                <div class="input-group">
+                    <label class="input-label" for="licenseKeyInput">सुरक्षा / लाइसेंस कुंजी (Security Key):</label>
+                    <input 
+                        type="text" 
+                        id="licenseKeyInput" 
+                        class="key-input" 
+                        placeholder="UPVOTER-XXXXXXXXX-XXXX" 
+                        required 
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+                </div>
+
+                <button type="submit" class="btn-activate" id="btnActivate">
+                    <span id="btnIcon">⚡</span>
+                    <span id="btnText">ऑनलाइन सक्रिय करें (Activate License)</span>
+                </button>
+            </form>
+        </div>
+
+        <!-- STEP 2: Create Admin User Form (Appears after Security Key verification) -->
+        <div id="step2Section" style="display: none;">
+            <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.4rem;">🎉</span>
+                <div style="font-size: 0.86rem; color: #166534; font-weight: 500; line-height: 1.4;">
+                    <strong>सुरक्षा कुंजी सत्यापित!</strong> अब इस कंप्यूटर पर प्रशासनिक नियंत्रण के लिए अपना मुख्य व्यवस्थापक (Admin) खाता बनाएँ।
+                </div>
+            </div>
+
+            <form id="adminSetupForm" onsubmit="handleAdminSetup(event)">
+                <div class="input-group">
+                    <label class="input-label" for="setupFullName">व्यवस्थापक का पूरा नाम (Full Name):</label>
+                    <input 
+                        type="text" 
+                        id="setupFullName" 
+                        class="key-input text-input" 
+                        placeholder="उदा. राहुल शर्मा (व्यवस्थापक)" 
+                        required 
+                        autocomplete="name"
+                    >
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label" for="setupUsername">एडमिन यूजर आईडी (Username):</label>
+                    <input 
+                        type="text" 
+                        id="setupUsername" 
+                        class="key-input text-input" 
+                        placeholder="उदा. admin, rk_admin" 
+                        required 
+                        autocomplete="username"
+                        spellcheck="false"
+                    >
+                    <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">
+                        ℹ️ 'harshsamrat' मुख्य सुपर एडमिन हेतु आरक्षित है। कृपया अपना नया यूजरनेम लिखें।
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label" for="setupPassword">नया पासवर्ड (Password):</label>
+                    <input 
+                        type="password" 
+                        id="setupPassword" 
+                        class="key-input text-input" 
+                        placeholder="पासवर्ड दर्ज करें (कम से कम 4 अक्षर)" 
+                        required 
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label" for="setupConfirmPassword">पासवर्ड पुनः दर्ज करें (Confirm Password):</label>
+                    <input 
+                        type="password" 
+                        id="setupConfirmPassword" 
+                        class="key-input text-input" 
+                        placeholder="पासवर्ड पुनः दर्ज करें" 
+                        required 
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <button type="submit" class="btn-activate" id="btnAdminSetup">
+                    <span id="btnSetupIcon">💾</span>
+                    <span id="btnSetupText">व्यवस्थापक खाता सुरक्षित करें व सॉफ़्टवेयर प्रारंभ करें</span>
+                </button>
+            </form>
+        </div>
+
+        <div id="statusAlert" class="status-alert"></div>
+
+        <div class="footer-note" id="footerNote">
+            लाइसेंस कुंजी प्राप्त करने हेतु एडमिन से संपर्क करें और ऊपर दी गई अपनी <strong>मशीन पहचान (HWID)</strong> साझा करें।
+        </div>
+    </div>
+
+    <script>
+        let currentHwid = "";
+
+        // Hardware & Browser Canvas Fingerprint Generator
+        function getDeviceFingerprint() {
+            try {
+                const components = [];
+                components.push((screen.width || 0) + "x" + (screen.height || 0) + "x" + (screen.colorDepth || 24));
+                components.push(window.devicePixelRatio || 1);
+                components.push(navigator.platform || "");
+                components.push(navigator.hardwareConcurrency || 2);
+                components.push(navigator.maxTouchPoints || 0);
+                components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || "");
+                components.push(navigator.language || "");
+                const canvas = document.createElement("canvas");
+                canvas.width = 200;
+                canvas.height = 40;
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                    ctx.textBaseline = "top";
+                    ctx.font = "14px 'Arial', sans-serif";
+                    ctx.fillStyle = "#FF9933";
+                    ctx.fillRect(100, 1, 60, 20);
+                    ctx.fillStyle = "#138808";
+                    ctx.fillText("VoterSeva2026", 2, 12);
+                    components.push(canvas.toDataURL().slice(-40));
+                }
+                const str = components.join("###");
+                let hash = 2166136261;
+                for (let i = 0; i < str.length; i++) {
+                    hash ^= str.charCodeAt(i);
+                    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+                }
+                return "fp_" + (hash >>> 0).toString(16);
+            } catch (e) {
+                return "fp_std";
+            }
+        }
+
+        function getDeviceId() {
+            const fp = getDeviceFingerprint();
+            let devId = localStorage.getItem('voter_device_id');
+            if (!devId) {
+                const randomPart = Math.random().toString(36).substring(2, 15);
+                devId = 'dev_' + fp + '_' + randomPart;
+                localStorage.setItem('voter_device_id', devId);
+            }
+            return devId;
+        }
+
+        function getDeviceName() {
+            return "Admin PC (" + (navigator.platform || "Windows") + ")";
+        }
+
+        function switchToStep2() {
+            document.getElementById('step1Section').style.display = 'none';
+            document.getElementById('step2Section').style.display = 'block';
+
+            document.getElementById('stepBubble1').className = 'step-bubble completed';
+            document.getElementById('stepIcon1').textContent = '✅';
+
+            document.getElementById('stepBubble2').className = 'step-bubble active';
+
+            document.getElementById('pageTitle').textContent = 'मुख्य व्यवस्थापक खाता निर्माण';
+            document.getElementById('pageSubtitle').textContent = 'इस कंप्यूटर के लिए अपना स्थानीय एडमिन खाता सेट करें।';
+            document.getElementById('footerNote').innerHTML = 'यह व्यवस्थापक खाता इस कंप्यूटर पर स्थानीय रूप से सुरक्षित रहेगा।';
+
+            setTimeout(() => {
+                document.getElementById('setupFullName').focus();
+            }, 100);
+        }
+
+        // Load License & HWID status on page load
+        async function loadStatus() {
+            try {
+                const res = await fetch('/api/license/status');
+                const data = await res.json();
+                currentHwid = data.hwid || "HWID-UNKNOWN";
+                document.getElementById('hwidDisplay').textContent = currentHwid;
+
+                if (data.is_activated) {
+                    if (data.needs_admin_setup) {
+                        // License is valid, but admin user has not been created yet!
+                        switchToStep2();
+                        showStatus("लाइसेंस पहले से सक्रिय है। कृपया नीचे व्यवस्थापक खाता बनाएँ।", 'info');
+                    } else {
+                        // Both license and admin account exist!
+                        showStatus(`सॉफ्टवेयर पहले से सक्रिय है! (${data.client_name || 'अधिकृत'}, शेष: ${data.days_remaining} दिन)`, 'success');
+                        setTimeout(() => {
+                            window.location.href = '/admin';
+                        }, 1200);
+                    }
+                } else if (data.status === 'expired') {
+                    showStatus(data.message || "लाइसेंस समाप्त हो चुका है। कृपया नई कुंजी दर्ज करें।", 'error');
+                } else if (data.status === 'revoked') {
+                    showStatus(data.message || "यह लाइसेंस एडमिन द्वारा निलंबित कर दिया गया है।", 'error');
+                }
+            } catch (err) {
+                document.getElementById('hwidDisplay').textContent = "कनेक्ट नहीं हो सका";
+                showStatus("स्थानीय सर्वर से संपर्क नहीं हो सका। कृपया सर्वर चालू रखें।", 'error');
+            }
+        }
+
+        // Copy HWID to clipboard
+        function copyHwid() {
+            if (!currentHwid) return;
+            navigator.clipboard.writeText(currentHwid).then(() => {
+                const copyText = document.getElementById('copyText');
+                const copyIcon = document.getElementById('copyIcon');
+                copyText.textContent = "कॉपी हो गया!";
+                copyIcon.textContent = "✅";
+                setTimeout(() => {
+                    copyText.textContent = "कॉपी करें";
+                    copyIcon.textContent = "📋";
+                }, 2000);
+            });
+        }
+
+        // Handle Step 1: Activation Submit
+        async function handleActivation(e) {
+            e.preventDefault();
+            const keyInput = document.getElementById('licenseKeyInput');
+            const key = keyInput.value.trim();
+            if (!key) return;
+
+            const btn = document.getElementById('btnActivate');
+            const btnText = document.getElementById('btnText');
+            const btnIcon = document.getElementById('btnIcon');
+
+            btn.disabled = true;
+            btnIcon.innerHTML = '<span class="spinner"></span>';
+            btnText.textContent = "सत्यापित किया जा रहा है...";
+            hideStatus();
+
+            try {
+                const res = await fetch('/api/license/activate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: key })
+                });
+
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    showStatus("✅ " + data.message, 'success');
+                    if (data.needs_admin_setup !== false) {
+                        // Move to Step 2: Create Admin Account
+                        setTimeout(() => {
+                            hideStatus();
+                            switchToStep2();
+                        }, 1000);
+                    } else {
+                        btnText.textContent = "सफल! सॉफ्टवेयर खुल रहा है...";
+                        setTimeout(() => {
+                            window.location.href = '/admin';
+                        }, 1200);
+                    }
+                } else {
+                    showStatus("❌ " + (data.detail || data.message || "सत्यापन विफल रहा।"), 'error');
+                    btn.disabled = false;
+                    btnIcon.textContent = "⚡";
+                    btnText.textContent = "पुनः प्रयास करें (Try Again)";
+                }
+            } catch (err) {
+                showStatus("❌ सर्वर से संचार में त्रुटि: " + err.message, 'error');
+                btn.disabled = false;
+                btnIcon.textContent = "⚡";
+                btnText.textContent = "ऑनलाइन सक्रिय करें";
+            }
+        }
+
+        // Handle Step 2: Admin User Creation
+        async function handleAdminSetup(e) {
+            e.preventDefault();
+            const fullName = document.getElementById('setupFullName').value.trim();
+            const username = document.getElementById('setupUsername').value.trim();
+            const password = document.getElementById('setupPassword').value;
+            const confirmPassword = document.getElementById('setupConfirmPassword').value;
+
+            if (!fullName || !username || !password) {
+                showStatus("कृपया सभी अनिवार्य फ़ील्ड भरें।", 'error');
+                return;
+            }
+
+            if (username.toLowerCase() === 'harshsamrat') {
+                showStatus("❌ 'harshsamrat' मुख्य सुपर एडमिन हेतु आरक्षित है। कृपया कोई अन्य यूजर आईडी चुनें।", 'error');
+                document.getElementById('setupUsername').focus();
+                return;
+            }
+
+            if (password.length < 4) {
+                showStatus("❌ पासवर्ड कम से कम 4 अक्षरों का होना चाहिए।", 'error');
+                document.getElementById('setupPassword').focus();
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showStatus("❌ दोनों पासवर्ड मेल नहीं खाते। कृपया पुनः जाँचें।", 'error');
+                document.getElementById('setupConfirmPassword').focus();
+                return;
+            }
+
+            const btn = document.getElementById('btnAdminSetup');
+            const btnText = document.getElementById('btnSetupText');
+            const btnIcon = document.getElementById('btnSetupIcon');
+
+            btn.disabled = true;
+            btnIcon.innerHTML = '<span class="spinner"></span>';
+            btnText.textContent = "व्यवस्थापक खाता बनाया जा रहा है...";
+            hideStatus();
+
+            try {
+                const payload = {
+                    username: username,
+                    full_name: fullName,
+                    password: password,
+                    device_id: getDeviceId(),
+                    device_name: getDeviceName(),
+                    device_fp: getDeviceFingerprint()
+                };
+
+                const res = await fetch('/api/license/setup-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    // Save session token and user info
+                    if (data.token) {
+                        localStorage.setItem('voter_auth_token', data.token);
+                        document.cookie = `voter_auth_token=${data.token}; path=/; max-age=2592000; SameSite=Lax`;
+                    }
+                    if (data.user) {
+                        localStorage.setItem('voter_auth_user', JSON.stringify(data.user));
+                        localStorage.setItem('voter_last_username', data.user.username);
+                    }
+
+                    showStatus("🎉 बधाई! व्यवस्थापक खाता सफलतापूर्वक निर्मित हो गया। सॉफ़्टवेयर प्रारंभ हो रहा है...", 'success');
+                    btnText.textContent = "सफल! सॉफ़्टवेयर खुल रहा है...";
+
+                    setTimeout(() => {
+                        window.location.href = '/admin';
+                    }, 1200);
+                } else {
+                    showStatus("❌ " + (data.detail || data.message || "खाता निर्माण में त्रुटि।"), 'error');
+                    btn.disabled = false;
+                    btnIcon.textContent = "💾";
+                    btnText.textContent = "व्यवस्थापक खाता सुरक्षित करें व सॉफ़्टवेयर प्रारंभ करें";
+                }
+            } catch (err) {
+                showStatus("❌ सर्वर से संचार में त्रुटि: " + err.message, 'error');
+                btn.disabled = false;
+                btnIcon.textContent = "💾";
+                btnText.textContent = "व्यवस्थापक खाता सुरक्षित करें";
+            }
+        }
+
+        function showStatus(msg, type) {
+            const alert = document.getElementById('statusAlert');
+            alert.className = `status-alert ${type}`;
+            alert.textContent = msg;
+        }
+
+        function hideStatus() {
+            const alert = document.getElementById('statusAlert');
+            alert.className = 'status-alert';
+            alert.style.display = 'none';
+        }
+
+        // Initial fetch
+        loadStatus();
+    </script>
+</body>
+</html>

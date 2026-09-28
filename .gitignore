@@ -1,0 +1,48 @@
+# Python & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+env/
+venv/
+ENV/
+
+# Output and build packages
+dist_staging/
+dist_output/
+*.exe
+*.zip
+*.tar.gz
+*.msi
+*.7z
+
+# Local User Data & Database (Strictly Protected)
+data/
+uploads/
+backups/
+temp/
+outputs/
+models/
+tessdata/
+tools/
+scratch/
+
+# Debug and test media in root
+*.png
+*.jpg
+*.jpeg
+*.pdf
+debug_*.txt
+page3_*.txt
+hin_all_cards.txt
+rel_names_test.txt
+test_accuracy_results.txt
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE and Editor files
+.vscode/
+.idea/
+

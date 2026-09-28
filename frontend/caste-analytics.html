@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>जाति एवं जनसांख्यिकी विश्लेषण डैशबोर्ड | UP Voter Seva</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons & Chart.js -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/js/auth.js"></script>
+    <link rel="icon" type="image/png" href="/assets/logo.png">
+    <link rel="alternate icon" type="image/x-icon" href="/assets/favicon.ico">
+    <link rel="stylesheet" href="/css/styles.css">
+
+    <style>
+        body {
+            background-color: #F8FAFC;
+            color: #0F172A;
+            font-family: var(--font-sans, 'Inter', 'Noto Sans Devanagari', sans-serif);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .analytics-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px 20px 60px 20px;
+        }
+
+        /* Top Header Navigation */
+        .analytics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 16px 24px;
+            background: #FFFFFF;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+            border: 1px solid #E2E8F0;
+            margin-bottom: 24px;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-logo {
+            width: 44px;
+            height: 44px;
+            object-fit: contain;
+        }
+
+        .header-title-group h1 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #0F172A;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-title-group p {
+            font-size: 0.82rem;
+            color: #64748B;
+            margin: 2px 0 0 0;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 0.86rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid #CBD5E1;
+            background: #FFFFFF;
+            color: #334155;
+        }
+
+        .btn-nav:hover {
+            background: #F1F5F9;
+            color: #0F172A;
+            border-color: #94A3B8;
+        }
+
+        .btn-primary-nav {
+            background: linear-gradient(135deg, #EA580C, #C2410C);
+            color: #FFFFFF;
+            border: none;
+            box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);
+        }
+
+        .btn-primary-nav:hover {
+            background: linear-gradient(135deg, #C2410C, #9A3412);
+            color: #FFFFFF;
+        }
+
+        /* Database Filter Bar */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 14px;
+            padding: 14px 20px;
+            background: #FFF7ED;
+            border: 1px solid #FED7AA;
+            border-radius: 14px;
+            margin-bottom: 24px;
+        }
+
+        .filter-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-label {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #9A3412;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .db-select {
+            padding: 8px 14px;
+            font-size: 0.86rem;
+            border: 1.5px solid #FDBA74;
+            border-radius: 10px;
+            background: #FFFFFF;
+            color: #1E293B;
+            font-weight: 500;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .db-select:focus {
+            border-color: #EA580C;
+            box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
+        }
+
+        .last-updated-badge {
+            font-size: 0.78rem;
+            color: #64748B;
+            background: #FFFFFF;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid #E2E8F0;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: #FFFFFF;
+            border-radius: 16px;
+            padding: 18px 20px;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+        }
+
+        .kpi-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .kpi-title {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #64748B;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-icon-box {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #0F172A;
+            line-height: 1.1;
+            font-family: var(--font-heading, sans-serif);
+        }
+
+        .kpi-subtitle {
+            font-size: 0.78rem;
+            color: #64748B;
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        /* Charts Layout */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1.3fr;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+
+        @media (max-width: 1024px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: #FFFFFF;
+            border-radius: 18px;
+            padding: 22px 24px;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #F1F5F9;
+        }
+
+        .chart-card-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1E293B;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            flex-grow: 1;
+            min-height: 280px;
+            width: 100%;
+        }
+
+        /* Caste Table Card */
+        .table-card {
+            background: #FFFFFF;
+            border-radius: 18px;
+            padding: 24px;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+            margin-bottom: 30px;
+        }
+
+        .table-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .table-search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: #F8FAFC;
+            border: 1.5px solid #CBD5E1;
+            border-radius: 10px;
+            width: 320px;
+            max-width: 100%;
+        }
+
+        .table-search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 0.86rem;
+            width: 100%;
+        }
+
+        .caste-data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+
+        .caste-data-table th {
+            background: #F8FAFC;
+            color: #475569;
+            font-weight: 600;
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 2px solid #E2E8F0;
+            white-space: nowrap;
+        }
+
+        .caste-data-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #F1F5F9;
+            color: #1E293B;
+            vertical-align: middle;
+        }
+
+        .caste-data-table tr:hover td {
+            background-color: #FFF7ED;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            max-width: 140px;
+            height: 8px;
+            background: #E2E8F0;
+            border-radius: 4px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s ease;
+        }
+
+        /* Access Restricted Banner for Operator */
+        .operator-lockout-card {
+            display: none;
+            background: #FFFFFF;
+            border-radius: 20px;
+            padding: 50px 30px;
+            text-align: center;
+            max-width: 580px;
+            margin: 60px auto;
+            border: 1.5px solid #FECDD3;
+            box-shadow: 0 10px 30px rgba(225, 29, 72, 0.08);
+        }
+
+        .lockout-icon {
+            width: 72px;
+            height: 72px;
+            background: #FFE4E6;
+            color: #E11D48;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+        }
+
+        .lockout-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #9F1239;
+            margin-bottom: 10px;
+        }
+
+        .lockout-desc {
+            font-size: 0.95rem;
+            color: #475569;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        /* Print formatting */
+        @media print {
+            .analytics-header .header-actions,
+            .filter-bar,
+            .table-toolbar,
+            .btn-nav {
+                display: none !important;
+            }
+            body {
+                background: #FFFFFF !important;
+            }
+            .analytics-container {
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+            .kpi-card, .chart-card, .table-card {
+                box-shadow: none !important;
+                border: 1px solid #CBD5E1 !important;
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Tiranga Top Accent -->
+    <div class="tiranga-stripe"></div>
+
+    <div class="analytics-container">
+        <!-- Header -->
+        <header class="analytics-header">
+            <div class="header-brand">
+                <img src="/assets/logo.png" alt="UP Voter Logo" class="header-logo" onerror="this.src='/favicon.ico'">
+                <div class="header-title-group">
+                    <h1>📊 जाति एवं जनसांख्यिकी विश्लेषण डैशबोर्ड</h1>
+                    <p>उत्तर प्रदेश निर्वाचक नामावली — AI आधारित समुदाय, जाति एवं रिश्तेदार क्लस्टर विश्लेषण</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="/admin" class="btn-nav">
+                    <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i>
+                    एडमिन कनवर्टर
+                </a>
+                <a href="/search" class="btn-nav">
+                    <i data-lucide="search" style="width: 16px; height: 16px;"></i>
+                    वोटर सर्च
+                </a>
+                <button type="button" onclick="loadCasteAnalytics()" class="btn-nav btn-primary-nav" id="btnRefreshAnalytics">
+                    <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+                    डेटा रिफ्रेश करें
+                </button>
+                <button type="button" onclick="window.print()" class="btn-nav" title="रिपोर्ट प्रिंट या PDF के रूप में सेव करें">
+                    <i data-lucide="printer" style="width: 16px; height: 16px;"></i>
+                    प्रिंट
+                </button>
+            </div>
+        </header>
+
+        <!-- Access Denied Card (Visible only to Data Operator) -->
+        <div id="operatorLockoutCard" class="operator-lockout-card">
+            <div class="lockout-icon">
+                <i data-lucide="shield-alert" style="width: 38px; height: 38px;"></i>
+            </div>
+            <h2 class="lockout-title">गोपनीयता सुरक्षा: पहुँच प्रतिबंधित</h2>
+            <p class="lockout-desc">
+                आप <strong>डाटा ऑपरेटर (Operator)</strong> के रूप में लॉगिन हैं।<br>
+                सिस्टम सुरक्षा नीतियों के अनुसार, ऑपरेटर खाते को जाति व सामाजिक जनसांख्यिकी डेटा देखने की अनुमति नहीं है।
+            </p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <a href="/admin" class="btn-nav btn-primary-nav">
+                    <i data-lucide="upload" style="width: 16px; height: 16px;"></i>
+                    पीडीएफ अपलोड व कनवर्टर पर जाएं
+                </a>
+                <a href="/search" class="btn-nav">
+                    <i data-lucide="search" style="width: 16px; height: 16px;"></i>
+                    ऑनलाइन वोटर सर्च
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Analytics Content (Visible to Admin) -->
+        <div id="analyticsMainContent">
+            <!-- Filter / Database Bar -->
+            <div class="filter-bar">
+                <div class="filter-left">
+                    <span class="filter-label">
+                        <i data-lucide="database" style="width: 18px; height: 18px;">="color: #EA580C;"></i>
+                        सक्रिय डेटाबेस:
+                    </span>
+                    <select id="analyticsDbSelect" class="db-select" onchange="onDatabaseChanged()">
+                        <option value="">मुख्य मतदाता डेटाबेस (Default)</option>
+                    </select>
+                </div>
+                <div class="last-updated-badge" id="lastUpdatedBadge">
+                    <i data-lucide="clock" style="width: 14px; height: 14px;"></i>
+                    अंतिम अद्यतन: <span id="lastUpdatedTime">लोड हो रहा है...</span>
+                </div>
+            </div>
+
+            <!-- KPI Summary Cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">कुल मतदाता</span>
+                        <div class="kpi-icon-box" style="background: #EFF6FF; color: #2563EB;">👥</div>
+                    </div>
+                    <div class="kpi-value" id="kpiTotalVoters">0</div>
+                    <div class="kpi-subtitle" id="kpiActiveSubtitle">सक्रिय निर्वाचक नामावली</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">हिन्दू मतदाता</span>
+                        <div class="kpi-icon-box" style="background: #FFF7ED; color: #EA580C;">🚩</div>
+                    </div>
+                    <div class="kpi-value" id="kpiHinduCount" style="color: #EA580C;">0</div>
+                    <div class="kpi-subtitle" id="kpiHinduPct">0.0% कुल मतदाताओं का</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">मुस्लिम मतदाता</span>
+                        <div class="kpi-icon-box" style="background: #ECFDF5; color: #059669;">☪️</div>
+                    </div>
+                    <div class="kpi-value" id="kpiMuslimCount" style="color: #059669;">0</div>
+                    <div class="kpi-subtitle" id="kpiMuslimPct">0.0% कुल मतदाताओं का</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">AI जाति वर्गीकृत</span>
+                        <div class="kpi-icon-box" style="background: #F3E8FF; color: #7C3AED;">🧬</div>
+                    </div>
+                    <div class="kpi-value" id="kpiClassifiedCount" style="color: #7C3AED;">0</div>
+                    <div class="kpi-subtitle" id="kpiClassifiedPct">पहचाने गए सामाजिक वर्ग</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">पारिवारिक व क्लस्टर AI</span>
+                        <div class="kpi-icon-box" style="background: #FEF3C7; color: #D97706;">🏠</div>
+                    </div>
+                    <div class="kpi-value" id="kpiHouseholdAiCount" style="color: #D97706;">0</div>
+                    <div class="kpi-subtitle">मकान व पारिवारिक रिश्ते से संबद्ध</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">प्रत्यक्ष उपनाम मिलान</span>
+                        <div class="kpi-icon-box" style="background: #E0E7FF; color: #4338CA;">📜</div>
+                    </div>
+                    <div class="kpi-value" id="kpiDirectCount" style="color: #4338CA;">0</div>
+                    <div class="kpi-subtitle">वोटर व पिता/पति उपनाम आधार</div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="charts-row">
+                <!-- Donut Chart: Community -->
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <span class="chart-card-title">
+                            <i data-lucide="pie-chart" style="width: 20px; height: 20px; color: #EA580C;"></i>
+                            समुदायवार वितरण (Community Distribution)
+                        </span>
+                        <span style="font-size: 0.78rem; color: #64748B; font-weight: 500;" id="communityTotalTag"></span>
+                    </div>
+                    <div class="chart-wrapper" style="max-height: 320px;">
+                        <canvas id="communityDonutChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Methodology Breakdown -->
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <span class="chart-card-title">
+                            <i data-lucide="cpu" style="width: 20px; height: 20px; color: #7C3AED;"></i>
+                            AI जाति वर्गीकरण पद्धति (Classification Methodology)
+                        </span>
+                    </div>
+                    <div class="chart-wrapper" style="max-height: 320px;">
+                        <canvas id="methodologyPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full Width Caste Bar Chart -->
+            <div class="chart-card" style="margin-bottom: 28px;">
+                <div class="chart-card-header">
+                    <span class="chart-card-title">
+                        <i data-lucide="bar-chart-3" style="width: 20px; height: 20px; color: #EA580C;"></i>
+                        प्रमुख जातियों व सामाजिक वर्गों का तुलनात्मक विश्लेषण
+                    </span>
+                    <span style="font-size: 0.8rem; color: #64748B;">क्रमबद्ध: उच्चतम से न्यूनतम मतदाता संख्या</span>
+                </div>
+                <div class="chart-wrapper" style="min-height: 480px;">
+                    <canvas id="casteHorizontalBarChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Detailed Caste Breakdown Table -->
+            <div class="table-card">
+                <div class="table-toolbar">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="table-2" style="width: 20px; height: 20px; color: #EA580C;"></i>
+                        <h2 style="font-size: 1.1rem; font-weight: 700; margin: 0; color: #1E293B;">विस्तृत जाति विवरण तालिका</h2>
+                        <span id="casteTableCountBadge" style="font-size: 0.78rem; background: #FFF7ED; color: #C2410C; padding: 2px 10px; border-radius: 12px; font-weight: 600; border: 1px solid #FED7AA;">0 वर्ग</span>
+                    </div>
+                    <div class="table-search-box">
+                        <i data-lucide="search" style="width: 16px; height: 16px; color: #94A3B8;"></i>
+                        <input type="text" id="casteTableSearch" placeholder="जाति अथवा उपनाम से खोजें..." oninput="filterCasteTable()">
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="caste-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">क्र०</th>
+                                <th>जाति / सामाजिक वर्ग</th>
+                                <th>प्रमुख उपनाम (Keywords)</th>
+                                <th style="text-align: right;">मतदाता संख्या</th>
+                                <th style="width: 220px;">प्रतिशत अनुपात</th>
+                                <th style="text-align: center; width: 140px;">कार्यवाही</th>
+                            </tr>
+                        </thead>
+                        <tbody id="casteTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: #64748B; padding: 30px;">डेटा लोड हो रहा है...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        let currentAnalyticsData = null;
+        let chartInstances = {};
+
+        // Color palette for caste charts
+        const CASTE_COLORS = [
+            '#059669', '#EA580C', '#2563EB', '#7C3AED', '#DB2777',
+            '#D97706', '#0891B2', '#4F46E5', '#BE185D', '#65A30D',
+            '#CA8A04', '#9333EA', '#0D9488', '#E11D48', '#475569',
+            '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'
+        ];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            lucide.createIcons();
+            await checkRoleAndInit();
+        });
+
+        async function checkRoleAndInit() {
+            try {
+                // Fetch current user details
+                const res = await VoterAuth.authFetch('/api/auth/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.authenticated && data.user) {
+                        const user = data.user;
+                        if (user.role === 'operator') {
+                            // Operator access denied!
+                            document.getElementById('analyticsMainContent').style.display = 'none';
+                            document.getElementById('operatorLockoutCard').style.display = 'block';
+                            lucide.createIcons();
+                            return;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Auth check error:', e);
+            }
+
+            // Normal Admin / Authorized User: load databases & analytics
+            await loadAvailableDatabases();
+            await loadCasteAnalytics();
+        }
+
+        async function loadAvailableDatabases() {
+            try {
+                const res = await VoterAuth.authFetch('/api/database/search-db-info');
+                if (res.ok) {
+                    const data = await res.json();
+                    const sel = document.getElementById('analyticsDbSelect');
+                    if (data.available_databases && data.available_databases.length > 0) {
+                        sel.innerHTML = data.available_databases.map(db => `
+                            <option value="${db.id}">${db.name} (${db.total_voters ? db.total_voters.toLocaleString() : 0} मतदाता)</option>
+                        `).join('');
+                        if (data.search_db_id) {
+                            sel.value = data.search_db_id;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Error loading databases:', e);
+            }
+        }
+
+        function onDatabaseChanged() {
+            loadCasteAnalytics();
+        }
+
+        async function loadCasteAnalytics() {
+            const btn = document.getElementById('btnRefreshAnalytics');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="spin" style="width: 16px; height: 16px;"></i> लोड हो रहा है...';
+                lucide.createIcons();
+            }
+
+            try {
+                const res = await VoterAuth.authFetch('/api/database/caste-analytics');
+                if (res.status === 403) {
+                    // Operator blocked by API
+                    document.getElementById('analyticsMainContent').style.display = 'none';
+                    document.getElementById('operatorLockoutCard').style.display = 'block';
+                    lucide.createIcons();
+                    return;
+                }
+
+                if (!res.ok) {
+                    throw new Error('एनालिटिक्स डेटा प्राप्त नहीं हो सका।');
+                }
+
+                const data = await res.json();
+                currentAnalyticsData = data;
+                renderDashboard(data);
+
+                const now = new Date();
+                document.getElementById('lastUpdatedTime').textContent = now.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            } catch (err) {
+                alert('त्रुटि: ' + (err.message || 'डेटा लोड करने में समस्या।'));
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i> डेटा रिफ्रेश करें';
+                    lucide.createIcons();
+                }
+            }
+        }
+
+        function renderDashboard(data) {
+            const total = data.total_voters || 0;
+            const hindu = data.hindu_count || 0;
+            const muslim = data.muslim_count || 0;
+            const direct = data.direct_count || 0;
+            const household = data.household_ai_count || 0;
+            const lineage = data.lineage_count || 0;
+            const classified = (direct + household + lineage);
+
+            // Update KPI cards
+            document.getElementById('kpiTotalVoters').textContent = total.toLocaleString('hi-IN');
+            document.getElementById('kpiHinduCount').textContent = hindu.toLocaleString('hi-IN');
+            document.getElementById('kpiHinduPct').textContent = total > 0 ? `${((hindu / total) * 100).toFixed(1)}% कुल मतदाताओं का` : '0.0%';
+
+            document.getElementById('kpiMuslimCount').textContent = muslim.toLocaleString('hi-IN');
+            document.getElementById('kpiMuslimPct').textContent = total > 0 ? `${((muslim / total) * 100).toFixed(1)}% कुल मतदाताओं का` : '0.0%';
+
+            document.getElementById('kpiClassifiedCount').textContent = classified.toLocaleString('hi-IN');
+            document.getElementById('kpiClassifiedPct').textContent = total > 0 ? `${((classified / total) * 100).toFixed(1)}% सटीकता से वर्गीकृत` : '0.0%';
+
+            document.getElementById('kpiHouseholdAiCount').textContent = (household + lineage).toLocaleString('hi-IN');
+            document.getElementById('kpiDirectCount').textContent = direct.toLocaleString('hi-IN');
+
+            document.getElementById('communityTotalTag').textContent = `कुल: ${total.toLocaleString('hi-IN')} मतदाता`;
+
+            // Render Charts
+            renderCommunityChart(data);
+            renderMethodologyChart(data);
+            renderCasteBarChart(data);
+
+            // Render Table
+            renderCasteTable(data.castes || []);
+            lucide.createIcons();
+        }
+
+        function renderCommunityChart(data) {
+            const ctx = document.getElementById('communityDonutChart');
+            if (!ctx) return;
+
+            if (chartInstances.community) {
+                chartInstances.community.destroy();
+            }
+
+            const hindu = data.hindu_count || 0;
+            const muslim = data.muslim_count || 0;
+
+            chartInstances.community = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['🚩 हिन्दू मतदाता', '☪️ मुस्लिम मतदाता'],
+                    datasets: [{
+                        data: [hindu, muslim],
+                        backgroundColor: ['#EA580C', '#059669'],
+                        borderWidth: 3,
+                        borderColor: '#FFFFFF',
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { family: "'Inter', 'Noto Sans Devanagari', sans-serif", size: 12, weight: 600 },
+                                padding: 18,
+                                boxWidth: 14
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw || 0;
+                                    const total = hindu + muslim;
+                                    const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                    return ` ${val.toLocaleString('hi-IN')} मतदाता (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '62%'
+                }
+            });
+        }
+
+        function renderMethodologyChart(data) {
+            const ctx = document.getElementById('methodologyPieChart');
+            if (!ctx) return;
+
+            if (chartInstances.methodology) {
+                chartInstances.methodology.destroy();
+            }
+
+            const direct = data.direct_count || 0;
+            const household = data.household_ai_count || 0;
+            const lineage = data.lineage_count || 0;
+
+            chartInstances.methodology = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['📜 प्रत्यक्ष उपनाम मिलान', '🏠 मकान AI क्लस्टर', '🧬 पारिवारिक रिश्ता (Kinship AI)'],
+                    datasets: [{
+                        data: [direct, household, lineage],
+                        backgroundColor: ['#3B82F6', '#D97706', '#8B5CF6'],
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF',
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { family: "'Inter', 'Noto Sans Devanagari', sans-serif", size: 11, weight: 500 },
+                                padding: 16,
+                                boxWidth: 12
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw || 0;
+                                    const sum = direct + household + lineage;
+                                    const pct = sum > 0 ? ((val / sum) * 100).toFixed(1) : 0;
+                                    return ` ${val.toLocaleString('hi-IN')} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderCasteBarChart(data) {
+            const ctx = document.getElementById('casteHorizontalBarChart');
+            if (!ctx) return;
+
+            if (chartInstances.casteBar) {
+                chartInstances.casteBar.destroy();
+            }
+
+            const rawCastes = data.castes || [];
+            // Filter top castes having voters or first 18
+            const activeCastes = rawCastes.filter(c => c.count > 0);
+            const displayCastes = activeCastes.length > 0 ? activeCastes : rawCastes.slice(0, 15);
+
+            const labels = displayCastes.map(c => c.label || c.full_label || c.key);
+            const counts = displayCastes.map(c => c.count);
+            const colors = displayCastes.map((c, i) => c.color || CASTE_COLORS[i % CASTE_COLORS.length]);
+
+            chartInstances.casteBar = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'मतदाता संख्या',
+                        data: counts,
+                        backgroundColor: colors,
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw || 0;
+                                    const total = data.total_voters || 1;
+                                    const pct = ((val / total) * 100).toFixed(1);
+                                    return ` ${val.toLocaleString('hi-IN')} मतदाता (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#F1F5F9' },
+                            ticks: { font: { family: "'Inter', sans-serif", size: 11 } }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { font: { family: "'Noto Sans Devanagari', 'Inter', sans-serif", size: 12, weight: 600 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderCasteTable(castes) {
+            const tbody = document.getElementById('casteTableBody');
+            const countBadge = document.getElementById('casteTableCountBadge');
+            if (!tbody) return;
+
+            if (!castes || castes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #64748B; padding: 24px;">कोई जाति डेटा उपलब्ध नहीं है।</td></tr>';
+                if (countBadge) countBadge.textContent = '0 वर्ग';
+                return;
+            }
+
+            if (countBadge) countBadge.textContent = `${castes.length} सामाजिक वर्ग`;
+
+            tbody.innerHTML = castes.map((c, idx) => {
+                const color = c.color || CASTE_COLORS[idx % CASTE_COLORS.length];
+                const pct = c.percentage || 0;
+                const label = c.full_label || c.label || c.key;
+                const searchLink = `/search?caste_key=${encodeURIComponent(c.key)}`;
+
+                return `
+                    <tr data-caste-key="${c.key}" data-label="${(label || '').toLowerCase()}">
+                        <td style="font-weight: 600; color: #64748B;">${idx + 1}</td>
+                        <td>
+                            <strong style="color: #0F172A; display: flex; align-items: center; gap: 6px;">
+                                <span style="width: 10px; height: 10px; border-radius: 50%; background: ${color}; display: inline-block;"></span>
+                                ${label}
+                            </strong>
+                        </td>
+                        <td style="color: #475569; font-size: 0.82rem;">${c.key === 'other' ? 'अन्य व अनाम उपनाम' : (c.key === 'muslim' ? 'अंसारी, खान, सिद्दीकी, कुरैशी, अली आदि' : (c.label || ''))}</td>
+                        <td style="text-align: right; font-weight: 700; font-family: var(--font-heading, sans-serif); font-size: 0.98rem; color: #0F172A;">
+                            ${(c.count || 0).toLocaleString('hi-IN')}
+                        </td>
+                        <td>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" style="width: ${Math.min(100, Math.max(2, pct))}%; background: ${color};"></div>
+                            </div>
+                            <span style="font-weight: 600; font-size: 0.82rem; color: #334155;">${pct}%</span>
+                        </td>
+                        <td style="text-align: center;">
+                            <a href="${searchLink}" target="_blank" class="btn-nav" style="padding: 4px 10px; font-size: 0.78rem;" title="इस जाति के सभी मतदाताओं को सर्च करें">
+                                खोजें <i data-lucide="external-link" style="width: 12px; height: 12px;"></i>
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function filterCasteTable() {
+            const q = (document.getElementById('casteTableSearch').value || '').trim().toLowerCase();
+            const rows = document.querySelectorAll('#casteTableBody tr[data-label]');
+            rows.forEach(r => {
+                const text = r.getAttribute('data-label') || '';
+                const key = r.getAttribute('data-caste-key') || '';
+                if (!q || text.includes(q) || key.includes(q)) {
+                    r.style.display = '';
+                } else {
+                    r.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

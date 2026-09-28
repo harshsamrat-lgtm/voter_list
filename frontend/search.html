@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>मतदाता सेवा | Voter Service</title>
+    <meta name="description" content="विधानसभा एवं मतदान केंद्र अनुसार त्वरित मतदाता खोज एवं डिजिटल मतदाता पर्ची">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/js/auth.js"></script>
+    <link rel="icon" type="image/png" href="/assets/logo.png">
+    <link rel="alternate icon" type="image/x-icon" href="/assets/favicon.ico">
+    <link rel="apple-touch-icon" href="/assets/logo.png">
+    
+    <!-- Custom Search Stylesheet -->
+    <link rel="stylesheet" href="/css/search.css">
+</head>
+<body>
+
+    <!-- National Tiranga Stripe -->
+    <div class="tiranga-stripe"></div>
+
+    <!-- Header Bar -->
+    <header class="portal-header">
+        <div class="header-inner">
+            <div class="brand-group">
+                <div class="brand-icon">
+                    <img src="/assets/logo.png" alt="मतदाता सेवा लोगो" class="portal-logo-img">
+                </div>
+                <div class="brand-text">
+                    <h1>मतदाता सेवा</h1>
+                    <p>विधानसभा एवं मतदान केंद्र अनुसार त्वरित मतदाता खोज</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <!-- Portal Refresh Button -->
+                <button type="button" class="portal-refresh-btn" id="portalRefreshBtn" title="पेज एवं डेटा पुनः लोड करें (Refresh)">
+                    <i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i>
+                    <span>रिफ्रेश</span>
+                </button>
+
+                <div class="admin-header-action" id="adminHeaderAction" style="display: none;">
+                    <a href="/admin" class="admin-link-btn" id="adminLinkBtn" title="कनवर्टर एवं डेटाबेस पोर्टल">
+                        <i data-lucide="layout-dashboard" id="portalNavIcon" style="width: 14px; height: 14px;"></i> 
+                        <span id="portalNavText">पोर्टल में जाएँ</span>
+                    </a>
+                </div>
+
+                <!-- User Profile & Auth Widget -->
+                <div class="portal-auth-widget" id="portalAuthWidget">
+                    <button class="portal-login-btn" id="openLoginModalBtn">
+                        <i data-lucide="log-in" style="width: 14px; height: 14px;"></i>
+                        <span>लॉगिन</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Login Gate Screen (Displayed when NOT logged in) -->
+    <div id="portalLoginGate" class="portal-login-gate" style="display: none;">
+        <div class="portal-gate-card">
+            <div class="portal-gate-header">
+                <div class="portal-gate-logo-wrapper">
+                    <img src="/assets/logo.png" alt="मतदाता सेवा लोगो" class="portal-gate-logo">
+                </div>
+                <h2 class="portal-gate-title">मतदाता सेवा — सुरक्षित लॉगिन</h2>
+                <p class="portal-gate-subtitle">पोर्टल का उपयोग करने के लिए कृपया अपनी यूजर आईडी व पासवर्ड से लॉगिन करें।</p>
+            </div>
+            <form id="portalGateForm" class="portal-gate-form">
+                <div class="form-group" style="margin-bottom: 14px; text-align: left;">
+                    <label for="gateLoginUsername" style="display: block; font-size: 0.88rem; font-weight: 600; margin-bottom: 6px; color: var(--text-main);">यूजर आईडी (Username)</label>
+                    <div class="gate-input-wrapper">
+                        <i data-lucide="user" class="gate-input-icon"></i>
+                        <input type="text" id="gateLoginUsername" required placeholder="यूजर आईडी दर्ज करें" class="gate-input" autocomplete="username">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 16px; text-align: left;">
+                    <label for="gateLoginPassword" style="display: block; font-size: 0.88rem; font-weight: 600; margin-bottom: 6px; color: var(--text-main);">पासवर्ड</label>
+                    <div class="gate-input-wrapper">
+                        <i data-lucide="lock" class="gate-input-icon"></i>
+                        <input type="password" id="gateLoginPassword" required placeholder="पासवर्ड दर्ज करें" class="gate-input" autocomplete="current-password">
+                    </div>
+                </div>
+                <div id="gateLoginError" class="gate-error-alert" style="display: none;"></div>
+                <button type="submit" class="btn-primary-gate" id="gateSubmitBtn">
+                    <i data-lucide="log-in" style="width: 18px; height: 18px;"></i>
+                    <span>लॉगिन करें</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Container (Shown ONLY after successful login) -->
+    <main class="portal-container" id="portalMainApp" style="display: none;">
+
+        <!-- Hero Section -->
+        <section class="hero-box">
+            <div class="hero-badge">
+                <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> आधिकारिक मतदाता सूची सेवा
+            </div>
+            <h2 class="hero-title">अपना नाम या मतदाता पर्ची खोजें</h2>
+            <p class="hero-subtitle">नाम, पिता/पति का नाम, पहचान पत्र क्रमांक (EPIC) या मतदान केंद्र अनुसार खोजें और तुरंत मतदाता सूचना पर्ची प्राप्त करें।</p>
+        </section>
+
+        <!-- Search Card -->
+        <section class="search-card">
+            <!-- Universal Search Input Bar -->
+            <div class="main-search-bar">
+                <div class="search-input-wrapper">
+                    <i data-lucide="search" class="search-input-icon"></i>
+                    <input type="text" id="mainSearchInput" class="main-search-input" placeholder="मतदाता का नाम, पिता/पति का नाम, या EPIC पहचान पत्र लिखें..." autocomplete="off">
+                </div>
+                <button id="searchBtn" class="btn-primary-search">
+                    <i data-lucide="search" style="width: 18px; height: 18px;"></i> खोजें
+                </button>
+            </div>
+
+            <!-- Filter Toggle & Live Statistics -->
+            <div class="filter-toggle-row">
+                <button id="toggleFiltersBtn" class="btn-toggle-filters">
+                    <i data-lucide="sliders-horizontal" style="width: 16px; height: 16px;"></i> विस्तृत फ़िल्टर
+                </button>
+                <div class="quick-stats-pills">
+                    <div class="stat-pill">कुल मतदाता: <strong id="statTotalVoters">--</strong></div>
+                    <div class="stat-pill">कुल भाग (बूथ): <strong id="statTotalParts">--</strong></div>
+                </div>
+            </div>
+
+            <!-- Advanced Filter Panel (Hidden by default) -->
+            <div id="advancedPanel" class="advanced-filters-panel" style="display: none;">
+                <div class="advanced-filter-alert-banner" style="grid-column: 1 / -1;">
+                    <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0; stroke: #ea580c;"></i>
+                    <span><strong>अनिवार्य नियम:</strong> विस्तृत फ़िल्टर में खोजने के लिए कम से कम <strong>मतदाता का नाम</strong>, <strong>पिता/पति का नाम</strong> अथवा <strong>EPIC No</strong> में से कोई एक विवरण भरना आवश्यक है।</span>
+                </div>
+                <div class="filter-field">
+                    <label for="filterName">मतदाता का नाम (Name) <span class="filter-req-badge">* अनिवार्य (कम से कम एक)</span></label>
+                    <input type="text" id="filterName" placeholder="उदा. सुरेश कुमार">
+                </div>
+                <div class="filter-field">
+                    <label for="filterRelName">पिता / पति का नाम <span class="filter-req-badge">* अनिवार्य (कम से कम एक)</span></label>
+                    <input type="text" id="filterRelName" placeholder="उदा. रामगोपाल">
+                </div>
+                <div class="filter-field">
+                    <label for="filterEpic">पहचान पत्र क्रमांक (EPIC No) <span class="filter-req-badge">* अनिवार्य (कम से कम एक)</span></label>
+                    <input type="text" id="filterEpic" placeholder="उदा. YOM1234567">
+                </div>
+                <div class="filter-field">
+                    <label for="filterPart">भाग संख्या (बूथ नं०)</label>
+                    <input type="text" id="filterPart" placeholder="उदा. 235">
+                </div>
+                <div class="filter-field">
+                    <label for="filterAssembly">विधानसभा क्षेत्र</label>
+                    <input type="text" id="filterAssembly" placeholder="उदा. गुन्नौर">
+                </div>
+                <div class="filter-field">
+                    <label for="filterHouse">मकान नं०</label>
+                    <input type="text" id="filterHouse" placeholder="उदा. 12">
+                </div>
+                <div class="filter-field">
+                    <label for="filterGender">लिंग (Gender)</label>
+                    <select id="filterGender">
+                        <option value="all">सभी लिंग</option>
+                        <option value="पुरुष">केवल पुरुष</option>
+                        <option value="महिला">केवल महिला</option>
+                        <option value="अन्य">अन्य</option>
+                    </select>
+                </div>
+                <div class="filter-field" style="display: flex; flex-direction: row; gap: 8px;">
+                    <div style="flex: 1;">
+                        <label for="filterMinAge">न्यूनतम आयु</label>
+                        <input type="number" id="filterMinAge" placeholder="18" min="18" max="120">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="filterMaxAge">अधिकतम आयु</label>
+                        <input type="number" id="filterMaxAge" placeholder="100" min="18" max="120">
+                    </div>
+                </div>
+
+                <div class="filter-actions">
+                    <button id="resetFiltersBtn" class="btn-secondary">
+                        <i data-lucide="rotate-ccw" style="width: 14px; height: 14px; display: inline;"></i> फ़िल्टर साफ़ करें
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Search Results Section -->
+        <section class="results-section">
+            <div class="results-header-bar">
+                <h3 id="resultsTitle" class="results-count-title">मतदाता खोज परिणाम</h3>
+            </div>
+
+            <!-- Desktop View: Clean Table -->
+            <div class="table-wrapper">
+                <table class="voter-search-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">क्रम सं०</th>
+                            <th>मतदाता का नाम</th>
+                            <th>सम्बन्धी का नाम</th>
+                            <th style="text-align: center; width: 90px;">मकान नं०</th>
+                            <th style="text-align: center; width: 70px;">आयु</th>
+                            <th style="text-align: center; width: 80px;">लिंग</th>
+                            <th style="text-align: center;">पहचान पत्र (EPIC)</th>
+                            <th style="text-align: center; width: 140px;">मतदाता पर्ची</th>
+                        </tr>
+                    </thead>
+                    <tbody id="desktopTableBody">
+                        <!-- Rows rendered by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile View: Modern Cards -->
+            <div id="mobileCardsContainer" class="mobile-cards-container">
+                <!-- Cards rendered by JavaScript -->
+            </div>
+
+            <!-- Pagination Bar -->
+            <div class="pagination-bar">
+                <div id="paginationInfo" style="font-size: 0.85rem; color: var(--text-muted);">
+                    दिखा रहे हैं 0 - 0 (कुल 0 में से)
+                </div>
+                <div class="pagination-buttons">
+                    <button id="prevBtn" class="btn-page" disabled>
+                        <i data-lucide="chevron-left" style="width: 14px; height: 14px; display: inline;"></i> पिछला
+                    </button>
+                    <span id="pageIndicator" style="font-size: 0.85rem; font-weight: 700; padding: 0 8px;">पेज 1 / 1</span>
+                    <button id="nextBtn" class="btn-page" disabled>
+                        अगला <i data-lucide="chevron-right" style="width: 14px; height: 14px; display: inline;"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="portal-footer">
+        <p>© 2026 मतदाता सेवा • नागरिक सहायता एवं सुगम मतदान हेतु</p>
+    </footer>
+
+    <!-- ==================================================================== -->
+    <!-- OFFICIAL DIGITAL VOTER INFORMATION SLIP MODAL (मतदाता सूचना पर्ची) -->
+    <!-- ==================================================================== -->
+    <div id="slipModal" class="slip-modal-overlay">
+        <div class="slip-modal-content">
+            
+            <!-- Authentic EC Style Voter Slip Paper -->
+            <div class="official-slip-paper">
+                <div class="slip-header-ec">
+                    <div class="ec-logo-text">🇮🇳 निर्वाचन नामावली / ELECTION ROLL</div>
+                    <div class="slip-title-main">मतदाता सूचना पर्ची</div>
+                    <div class="slip-subtitle">VOTER INFORMATION SLIP</div>
+                </div>
+
+                <div class="slip-serial-highlight">
+                    <div>
+                        <div class="slip-label">विधानसभा निर्वाचन क्षेत्र</div>
+                        <div id="slipAssembly" class="slip-value" style="color: #1e3a8a;">--</div>
+                        <div id="slipPartNo" style="font-size: 0.8rem; font-weight: 700; color: #64748b; margin-top: 2px;">--</div>
+                    </div>
+                    <div class="serial-number-box">
+                        <span>क्रम संख्या (SERIAL NO.)</span>
+                        <span id="slipSerial">--</span>
+                    </div>
+                </div>
+
+                <div class="slip-details-grid">
+                    <div class="slip-detail-item">
+                        <span class="slip-label">मतदाता का नाम (NAME)</span>
+                        <span id="slipName" class="slip-value">--</span>
+                    </div>
+                    <div class="slip-detail-item">
+                        <span id="slipRelType" class="slip-label">पिता/पति का नाम</span>
+                        <span id="slipRelName" class="slip-value">--</span>
+                    </div>
+                    <div class="slip-detail-item">
+                        <span class="slip-label">पहचान पत्र क्रमांक (EPIC NO.)</span>
+                        <span id="slipEpic" class="slip-value" style="font-family: monospace; letter-spacing: 0.05em; color: #1e3a8a;">--</span>
+                    </div>
+                    <div class="slip-detail-item">
+                        <span class="slip-label">लिंग / आयु (GENDER / AGE)</span>
+                        <span id="slipGenderAge" class="slip-value">--</span>
+                    </div>
+                    <div class="slip-detail-item">
+                        <span class="slip-label">मकान संख्या (HOUSE NO.)</span>
+                        <span id="slipHouse" class="slip-value">--</span>
+                    </div>
+                    <div class="slip-detail-item full-width">
+                        <span class="slip-label">मतदान स्थल का नाम व भवन (POLLING STATION)</span>
+                        <span id="slipStation" class="slip-value" style="color: #b45309; font-size: 0.9rem;">--</span>
+                    </div>
+                </div>
+
+                <div class="slip-disclaimer">
+                    ⚠️ <strong>नोट:</strong> यह पर्ची मतदान केंद्र व क्रम संख्या की जानकारी हेतु है। मतदान के समय मतदाता फोटो पहचान पत्र (EPIC) अथवा मान्य सरकारी पहचान पत्र अवश्य साथ लाएं।
+                </div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="slip-actions-bar">
+                <button id="slipShareWaBtn" class="btn-slip-share-wa">
+                    <i data-lucide="share-2" style="width: 16px; height: 16px;"></i> WhatsApp पर भेजें
+                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button id="slipPrintBtn" class="btn-slip-print">
+                        <i data-lucide="printer" style="width: 16px; height: 16px;"></i> पर्ची प्रिंट करें
+                    </button>
+                    <button id="slipCloseBtn" class="btn-slip-close">
+                        बंद करें
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+
+    <!-- Self-Service Change Password Modal -->
+    <div class="modal-backdrop" id="changeMyPwdModal" style="display: none;">
+        <div class="modal-card" style="max-width: 420px; width: 92%;">
+            <div class="modal-header">
+                <div class="modal-title" style="color: var(--primary);">
+                    <i data-lucide="key-round"></i>
+                    <h3>अपना पासवर्ड बदलें</h3>
+                </div>
+                <button class="close-btn" id="closeChangeMyPwdModalBtn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="changeMyPwdForm">
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="myOldPassword" style="font-weight: 600; font-size: 0.88rem; display: block; margin-bottom: 4px;">वर्तमान पुराना पासवर्ड *</label>
+                        <input type="password" id="myOldPassword" required placeholder="वर्तमान पासवर्ड" class="custom-input" style="width: 100%;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="myNewPassword" style="font-weight: 600; font-size: 0.88rem; display: block; margin-bottom: 4px;">नया पासवर्ड *</label>
+                        <input type="password" id="myNewPassword" required placeholder="नया गोपनीय पासवर्ड" class="custom-input" style="width: 100%;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="myConfirmPassword" style="font-weight: 600; font-size: 0.88rem; display: block; margin-bottom: 4px;">नया पासवर्ड दोबारा लिखें *</label>
+                        <input type="password" id="myConfirmPassword" required placeholder="नया पासवर्ड दोबारा लिखें" class="custom-input" style="width: 100%;">
+                    </div>
+                    <div id="changePwdError" style="display: none; padding: 10px; border-radius: 8px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #DC2626; font-size: 0.82rem; margin-bottom: 14px;"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-outline" id="cancelChangeMyPwdBtn">रद्द करें</button>
+                        <button type="submit" class="btn-primary">
+                            <i data-lucide="check"></i> पासवर्ड सुरक्षित करें
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script -->
+    <script src="/js/search.js"></script>
+
+</body>
+</html>

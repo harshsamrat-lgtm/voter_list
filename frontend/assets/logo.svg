@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bhagwaBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF7700"/>
+      <stop offset="50%" stop-color="#EA580C"/>
+      <stop offset="100%" stop-color="#C2410C"/>
+    </linearGradient>
+    <linearGradient id="goldGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="whiteGleam" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.2"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Base Rounded Shield/Badge with Saffron Gradient -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bhagwaBg)" filter="url(#shadow)"/>
+  
+  <!-- Outer Gold Border -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="none" stroke="url(#goldGlow)" stroke-width="12" stroke-opacity="0.9"/>
+  
+  <!-- Subtle Inner Ring -->
+  <circle cx="256" cy="256" r="195" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="8,8" stroke-opacity="0.35"/>
+
+  <!-- Inner Radiant Mandala/Sun Rays -->
+  <g opacity="0.22" stroke="#FFFFFF" stroke-width="3">
+    <line x1="256" y1="70" x2="256" y2="442"/>
+    <line x1="70" y1="256" x2="442" y2="256"/>
+    <line x1="125" y1="125" x2="387" y2="387"/>
+    <line x1="125" y1="387" x2="387" y2="125"/>
+  </g>
+
+  <!-- Ballot Box / Citizen Voting Shield -->
+  <path d="M150 200 L362 200 L340 370 C340 395 315 415 256 425 C197 415 172 395 172 370 Z" 
+        fill="#180F08" fill-opacity="0.45" stroke="url(#goldGlow)" stroke-width="6"/>
+
+  <!-- Official Indian Voter Finger with Indelible Blue Ink Mark -->
+  <!-- Finger Silhouette -->
+  <path d="M236 120 C236 95 276 95 276 120 L276 295 C276 308 266 318 256 318 C246 318 236 308 236 295 Z" 
+        fill="#FFF7ED" filter="url(#shadow)"/>
+  
+  <!-- Indelible Voting Ink Mark (Deep Blue/Purple stripe on nail & cuticle) -->
+  <path d="M251 100 L261 100 L261 165 L251 165 Z" fill="#1D4ED8"/>
+  <circle cx="256" cy="168" r="4.5" fill="#1E40AF"/>
+
+  <!-- Golden Democracy Star & Checkmark -->
+  <!-- Checkmark (Vote Casted / Verified) -->
+  <path d="M185 270 L235 320 L335 210" 
+        fill="none" stroke="url(#goldGlow)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" filter="url(#shadow)"/>
+  <path d="M185 270 L235 320 L335 210" 
+        fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Top Ashoka Wheel / Circular Star Accent -->
+  <circle cx="256" cy="65" r="14" fill="url(#goldGlow)"/>
+  <circle cx="256" cy="65" r="7" fill="#C2410C"/>
+</svg>
