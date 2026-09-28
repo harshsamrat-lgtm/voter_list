@@ -55,18 +55,18 @@ function isOperatorUser() {
     }
 }
 
-// Super-Admin Helper: ONLY root super-admin 'harshsamrat' can view/access Nagar Panchayat street & house match
+// Super-Admin Helper: ONLY root super-admin 'harshsamrat' can view/access Super-Admin features
+// (Nagar Panchayat street & house match, Git OTA Publisher, etc.)
 function isSuperAdminUser() {
     try {
         const u = window.VoterAuth ? window.VoterAuth.getUser() : null;
-        if (!u) {
-            const h = window.location.hostname;
-            return h === 'localhost' || h === '127.0.0.1';
+        if (!u || !u.username) {
+            return false;
         }
         const uname = (u.username || '').trim().toLowerCase();
-        return uname === 'harshsamrat' || u.role === 'admin';
+        return uname === 'harshsamrat';
     } catch (e) {
-        return true;
+        return false;
     }
 }
 
@@ -4508,6 +4508,10 @@ function applyOperatorRoleRestrictions(user) {
     if (streetAuditBtn) streetAuditBtn.style.display = isSuper ? '' : 'none';
     const streetAuditView = document.getElementById('streetAuditView');
     if (streetAuditView && !isSuper) streetAuditView.style.display = 'none';
+
+    // Super-User Exclusivity: "🚀 नया अपडेट पब्लिश करें" is strictly for 'harshsamrat' only!
+    const pubNavBtn = document.getElementById('btnOpenPublisherNav');
+    if (pubNavBtn) pubNavBtn.style.display = isSuper ? 'inline-flex' : 'none';
 
     // 2. Database view administrative controls: Hide Multi-DB card & actions from Operator
     const multiDbCard = document.querySelector('.db-management-card');
@@ -9080,7 +9084,7 @@ function checkSuperAdminPublisherVisibility() {
 async function openGitPublishModal() {
     if (!isSuperAdminUser()) {
         if (typeof showToast === 'function') {
-            showToast('पहुँच अस्वीकृत: यह केवल मुख्य सुपर एडमिन (harshsamrat) हेतु है।', 'error');
+            showToast('पहुँच अस्वीकृत: "🚀 नया अपडेट पब्लिश करें" सुविधा केवल मुख्य सुपर एडमिन (harshsamrat) हेतु आरक्षित है।', 'error');
         }
         return;
     }
@@ -9159,7 +9163,7 @@ function updatePublishVersionPreview() {
 async function executeOtaPublish() {
     if (gitPublishState.isPublishing) return;
     if (!isSuperAdminUser()) {
-        alert('केवल harshsamrat सुपर एडमिन ही Git पर पब्लिश कर सकते हैं।');
+        alert('पहुँच अस्वीकृत: "🚀 नया अपडेट पब्लिश करें" केवल मुख्य सुपर एडमिन (harshsamrat) ही उपयोग कर सकते हैं।');
         return;
     }
 

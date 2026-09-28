@@ -164,21 +164,19 @@ def verify_superadmin_only_access(request: Request):
     """
     Strict Security Barrier:
     Protects Nagar Panchayat Geographic Street & House Survey Audit Matching & Git OTA Publisher.
-    On localhost/127.0.0.1, automatically authorized for the local machine owner (harshsamrat).
+    Strictly restricted to the super user 'harshsamrat'.
     """
     user = get_current_user_optional(request)
     if not user:
-        if not is_public_request(request):
-            return {"username": "harshsamrat", "role": "admin"}
         raise HTTPException(
             status_code=401,
             detail="सत्यापन आवश्यक है। कृपया 'harshsamrat' सुपर एडमिन के रूप में लॉगिन करें।"
         )
     username = (user.get("username") or "").strip().lower()
-    if username != "harshsamrat" and is_public_request(request):
+    if username != "harshsamrat":
         raise HTTPException(
             status_code=403,
-            detail="पहुँच अस्वीकृत (Access Denied): यह प्रशासनिक सुविधा केवल मुख्य सुपर एडमिन (harshsamrat) हेतु आरक्षित है।"
+            detail="पहुँच अस्वीकृत (Access Denied): '🚀 नया अपडेट पब्लिश करें' एवं प्रशासनिक ऑडिट केवल मुख्य सुपर एडमिन (harshsamrat) हेतु आरक्षित है।"
         )
     return user
 

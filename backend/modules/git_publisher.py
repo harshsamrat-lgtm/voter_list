@@ -180,6 +180,12 @@ class GitPublisher:
                     zf.write(p, fn)
                     total_files += 1
 
+            # Safely include Firebase service account key so direct Cloud Sync works on all installations
+            sa_key = BASE_DIR / "data" / "serviceAccountKey.json"
+            if sa_key.exists():
+                zf.write(sa_key, "data/serviceAccountKey.json")
+                total_files += 1
+
         return total_files
 
     @classmethod

@@ -1,26 +1,28 @@
 {
-  "version": "1.0.4",
+  "version": "1.0.5",
   "app_name": "UP Voter Seva",
   "channel": "stable",
   "release_date": "2026-09-28",
   "min_required_version": "1.0.0",
   "remote_manifest_url": "https://raw.githubusercontent.com/harshsamrat-lgtm/voter_list/main/version.json",
   "update_type": "patch",
-  "title": "UP वोटर सेवा v1.0.4 अपडेट",
-  "notes": "आधिकारिक OTA अपडेट v1.0.3 - पूर्ण रिपॉजिटरी सिंक व ऑटो-अपडेटर",
+  "title": "UP वोटर सेवा v1.0.5 आधिकारिक अपडेट",
+  "notes": "🚀 'नया अपडेट पब्लिश करें' केवल सुपर एडमिन (harshsamrat) हेतु आरक्षित, एवं डायरेक्ट फायरबेस क्लाउड सिंक",
   "changelog": [
-    "आधिकारिक OTA अपडेट v1.0.4",
-    "आधिकारिक OTA अपडेट v1.0.3 - पूर्ण रिपॉजिटरी सिंक व ऑटो-अपडेटर",
-    "डेटा सुरक्षा शील्ड: स्थानीय डेटाबेस सुरक्षित"
+    "🚀 'नया अपडेट पब्लिश करें' सुविधा केवल मुख्य सुपर एडमिन (harshsamrat) हेतु आरक्षित",
+    "🔥 डायरेक्ट फायरबेस क्लाउड सिंक: बिना पोर्ट 9002 या npm run dev के सीधे नगर पंचायत डोर-टू-डोर सर्वे डेटा सिंक",
+    "🛡️ ऑपरेटर व सामान्य व्यवस्थापकों से सुपर-एडमिन टूल्स की पूर्ण सुरक्षा",
+    "📦 नया स्टैंडअलोन Windows .exe इंस्टॉलर (v1.0.5) तैयार",
+    "डेटा सुरक्षा शील्ड: स्थानीय मतदाता डेटाबेस व लाइसेंस सुरक्षित"
   ],
   "patch": {
-    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.4/update-patch.zip",
-    "size_mb": 2.41,
-    "sha256": "39a2cf0c4311673f9aea4ea5af0299239d5ebb7d992f43b0a50953c036cc40e2"
+    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.5/update-patch.zip",
+    "size_mb": 2.42,
+    "sha256": "c190832533b6eaf24b181fb9a8ed1374e6f3029ca7f54f2670752f0da56df227"
   },
   "full_installer": {
-    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.4/UP_Voter_Service_Setup_v1.0.exe",
+    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.5/UP_Voter_Service_Setup_v1.0.exe",
     "size_mb": 285.0,
-    "sha256": ""
+    "sha256": "8d2e0a48bb67562f6622c31c0d5b033249fd13ab1e7e36ffb62aa9995f05259e"
   }
 }
