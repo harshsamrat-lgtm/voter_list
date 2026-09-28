@@ -288,6 +288,7 @@ class GitPublisher:
             try:
                 env = os.environ.copy()
                 env["GIT_TERMINAL_PROMPT"] = "0"
+                env["GCM_INTERACTIVE"] = "never"
                 res = subprocess.run(
                     cmd,
                     shell=True,
@@ -404,7 +405,7 @@ class GitPublisher:
 
         # Push branch & tags
         logs.append(f"GitHub पर कोड व टैग पुश किया जा रहा है ({DEFAULT_REPO})...")
-        ok_push, msg_push = run_git(f'git push "{push_remote_url}" {branch_name} --tags --force')
+        ok_push, msg_push = run_git(f'git -c credential.helper= push "{push_remote_url}" {branch_name} --tags --force')
         if ok_push:
             logs.append("✅ Git Push सफल रहा (main + tags)!")
         else:
