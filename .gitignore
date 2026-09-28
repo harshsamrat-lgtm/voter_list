@@ -18,6 +18,10 @@ dist_output/
 *.7z
 
 # Local User Data & Database (Strictly Protected)
+*.db
+*.db-wal
+*.db-shm
+*.enc
 data/
 uploads/
 backups/
