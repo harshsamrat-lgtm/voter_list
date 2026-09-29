@@ -46,12 +46,20 @@ FIRESTORE_COLLECTION = os.getenv("FIRESTORE_COLLECTION", "voter_licenses")
 class LicenseGuard:
     """Manages software licensing, machine hardware binding, and online security keys."""
 
+    _cached_hwid: Optional[str] = None
+    _cached_status: Optional[Dict[str, Any]] = None
+    _status_cache_time: float = 0.0
+
     @classmethod
     def get_machine_hwid(cls) -> str:
         """
         Generates a deterministic 16-character Hardware ID (HWID)
         based on Motherboard UUID and Windows MachineGuid.
+        Cached in memory to eliminate repeated subprocess overhead.
         """
+        if cls._cached_hwid:
+            return cls._cached_hwid
+
         raw_parts = []
 
         # 1. Motherboard / System UUID via PowerShell
@@ -81,7 +89,8 @@ class LicenseGuard:
         combined = "###".join(raw_parts)
         h = hashlib.sha256(combined.encode("utf-8")).hexdigest()
         # Format as: HWID-XXXX-XXXX-XXXX
-        return f"HWID-{h[:4].upper()}-{h[4:8].upper()}-{h[8:12].upper()}"
+        cls._cached_hwid = f"HWID-{h[:4].upper()}-{h[4:8].upper()}-{h[8:12].upper()}"
+        return cls._cached_hwid
 
     @classmethod
     def generate_key(
@@ -280,6 +289,8 @@ class LicenseGuard:
         }
 
         cls._save_vault(vault_data)
+        cls._cached_status = None
+        cls._status_cache_time = 0.0
         return True, f"सॉफ्टवेयर सफलतापूर्वक सक्रिय (Activated) हो गया! उपयोगकर्ता: {client_name}, वैधता: {expiry_date}"
 
     @classmethod
@@ -288,16 +299,21 @@ class LicenseGuard:
         return bool(cls.get_license_status().get("is_activated"))
 
     @classmethod
-    def get_license_status(cls) -> Dict[str, Any]:
+    def get_license_status(cls, force_refresh: bool = False) -> Dict[str, Any]:
         """
         Reads and verifies the current license state.
         Returns a dictionary with activation details and remaining days.
+        Uses in-memory cache to guarantee sub-millisecond response times.
         """
+        now_ts = time.time()
+        if not force_refresh and cls._cached_status and (now_ts - cls._status_cache_time < 30.0):
+            return cls._cached_status
+
         current_hwid = cls.get_machine_hwid()
         vault = cls._load_vault()
 
         if not vault:
-            return {
+            res = {
                 "is_activated": False,
                 "status": "unactivated",
                 "client_name": None,
@@ -306,6 +322,9 @@ class LicenseGuard:
                 "hwid": current_hwid,
                 "message": "सॉफ्टवेयर सक्रिय नहीं है। कृपया लाइसेंस की दर्ज करें।"
             }
+            cls._cached_status = res
+            cls._status_cache_time = now_ts
+            return res
 
         key = vault.get("key", "")
         vault_hwid = vault.get("hwid", "")
@@ -370,7 +389,7 @@ class LicenseGuard:
                 vault["last_verified_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 cls._save_vault(vault)
 
-        return {
+        res = {
             "is_activated": True,
             "status": "active",
             "client_name": vault.get("client_name", "Authorized User"),
@@ -379,10 +398,15 @@ class LicenseGuard:
             "hwid": current_hwid,
             "message": "लाइसेंस सक्रिय एवं वैध है।"
         }
+        cls._cached_status = res
+        cls._status_cache_time = now_ts
+        return res
 
     @classmethod
     def revoke_local_license(cls):
         """Deletes the local encrypted license file (locks the software)."""
+        cls._cached_status = None
+        cls._status_cache_time = 0.0
         try:
             if LICENSE_FILE.exists():
                 os.remove(LICENSE_FILE)

@@ -142,11 +142,11 @@ class ExcelBuilder:
         ws1.merge_cells("A1:N1")
         banner_cell = ws1["A1"]
         if is_ulb:
-            banner_title = "राज्य निर्वाचन आयोग, उत्तर प्रदेश — नगरीय निकाय सामान्य निर्वाचन नामावली"
+            banner_title = "राज्य निर्वाचन आयोग — नगरीय निकाय सामान्य निर्वाचन नामावली"
             if assembly_name:
                 banner_title += f" | निकाय / वार्ड: {assembly_name}"
         else:
-            banner_title = "भारत निर्वाचन आयोग — उत्तर प्रदेश मतदाता सूची (Electoral Roll)"
+            banner_title = "भारत निर्वाचन आयोग — मतदाता सूची (Electoral Roll)"
             if assembly_name:
                 banner_title += f" | विधान सभा: {assembly_name}"
         if part_no:

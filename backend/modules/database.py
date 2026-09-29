@@ -24,7 +24,7 @@ from .ai_search import (
 )
 from .community_detector import identify_voter_community
 from .caste_detector import extract_surname, CASTE_PRESETS, detect_direct_caste
-from .local_caste_ai import LocalCasteAIEngine
+from .local_caste_ai import LocalCasteAIEngine, clean_and_normalize_name
 from .privacy_manager import PrivacyManager
 from .validator import is_genuine_voter, clean_house_no
 
@@ -1855,34 +1855,24 @@ class VoterDatabase:
             return [dict(r) for r in cursor.fetchall()]
 
     @classmethod
-    def get_voters_by_house(cls, part_no: str, house_no: str, db_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_voters_by_house(cls, part_no: Optional[str], house_no: str, db_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Returns all registered voters residing in a specific part_no and house_no,
-        annotated with any active mapping to an NPPropertyServey family member.
+        or across all parts if part_no is 'ALL', empty, or None.
+        Annotated with any active mapping to an NPPropertyServey family member.
         """
         if not cls._initialized:
             cls.init_db(db_id=db_id)
 
         clean_h = clean_house_no(house_no or "")
         norm_part = str(part_no or "").strip()
+        is_all_parts = not norm_part or norm_part.upper() in ("ALL", "ANY", "-- समस्त भाग --")
 
         with cls.get_connection(db_id=db_id, purpose="read") as conn:
             cls._ensure_mapping_table(conn)
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT v.id, v.serial_no, v.part_no, v.name, v.relation_type, v.relation_name,
-                       v.house_no, v.age, v.gender, v.epic_no, v.caste_key, v.caste_source, v.caste_reason,
-                       v.is_muslim, v.is_deleted,
-                       m.id as mapping_id, m.family_id, m.member_id, m.member_name as mapped_member_name, m.mapped_at
-                FROM voters v
-                LEFT JOIN survey_voter_mappings m ON v.id = m.voter_id
-                WHERE v.part_no = ? AND (v.house_no = ? OR v.house_no = ?) AND (v.is_deleted = 0 OR v.is_deleted IS NULL)
-                ORDER BY CAST(v.serial_no AS INTEGER);
-            """, (norm_part, house_no, clean_h))
-            rows = cursor.fetchall()
 
-            # If no rows found with exact house_no, query all voters in part and filter with clean_house_no
-            if not rows and norm_part:
+            if is_all_parts:
                 cursor.execute("""
                     SELECT v.id, v.serial_no, v.part_no, v.name, v.relation_type, v.relation_name,
                            v.house_no, v.age, v.gender, v.epic_no, v.caste_key, v.caste_source, v.caste_reason,
@@ -1890,19 +1880,169 @@ class VoterDatabase:
                            m.id as mapping_id, m.family_id, m.member_id, m.member_name as mapped_member_name, m.mapped_at
                     FROM voters v
                     LEFT JOIN survey_voter_mappings m ON v.id = m.voter_id
-                    WHERE v.part_no = ? AND (v.is_deleted = 0 OR v.is_deleted IS NULL)
-                    ORDER BY CAST(v.serial_no AS INTEGER);
-                """, (norm_part,))
-                all_part_rows = cursor.fetchall()
-                target_clean = clean_house_no(house_no)
-                rows = [r for r in all_part_rows if clean_house_no(r["house_no"] or "") == target_clean]
+                    WHERE (v.house_no = ? OR v.house_no = ?) AND (v.is_deleted = 0 OR v.is_deleted IS NULL)
+                    ORDER BY CAST(v.part_no AS INTEGER), CAST(v.serial_no AS INTEGER);
+                """, (house_no, clean_h))
+                rows = cursor.fetchall()
 
+                if not rows:
+                    cursor.execute("""
+                        SELECT v.id, v.serial_no, v.part_no, v.name, v.relation_type, v.relation_name,
+                               v.house_no, v.age, v.gender, v.epic_no, v.caste_key, v.caste_source, v.caste_reason,
+                               v.is_muslim, v.is_deleted,
+                               m.id as mapping_id, m.family_id, m.member_id, m.member_name as mapped_member_name, m.mapped_at
+                        FROM voters v
+                        LEFT JOIN survey_voter_mappings m ON v.id = m.voter_id
+                        WHERE (v.is_deleted = 0 OR v.is_deleted IS NULL)
+                        ORDER BY CAST(v.part_no AS INTEGER), CAST(v.serial_no AS INTEGER);
+                    """)
+                    all_rows = cursor.fetchall()
+                    target_clean = clean_house_no(house_no)
+                    rows = [r for r in all_rows if clean_house_no(r["house_no"] or "") == target_clean]
+            else:
+                cursor.execute("""
+                    SELECT v.id, v.serial_no, v.part_no, v.name, v.relation_type, v.relation_name,
+                           v.house_no, v.age, v.gender, v.epic_no, v.caste_key, v.caste_source, v.caste_reason,
+                           v.is_muslim, v.is_deleted,
+                           m.id as mapping_id, m.family_id, m.member_id, m.member_name as mapped_member_name, m.mapped_at
+                    FROM voters v
+                    LEFT JOIN survey_voter_mappings m ON v.id = m.voter_id
+                    WHERE v.part_no = ? AND (v.house_no = ? OR v.house_no = ?) AND (v.is_deleted = 0 OR v.is_deleted IS NULL)
+                    ORDER BY CAST(v.serial_no AS INTEGER);
+                """, (norm_part, house_no, clean_h))
+                rows = cursor.fetchall()
+
+                # If no rows found with exact house_no, query all voters in part and filter with clean_house_no
+                if not rows and norm_part:
+                    cursor.execute("""
+                        SELECT v.id, v.serial_no, v.part_no, v.name, v.relation_type, v.relation_name,
+                               v.house_no, v.age, v.gender, v.epic_no, v.caste_key, v.caste_source, v.caste_reason,
+                               v.is_muslim, v.is_deleted,
+                               m.id as mapping_id, m.family_id, m.member_id, m.member_name as mapped_member_name, m.mapped_at
+                        FROM voters v
+                        LEFT JOIN survey_voter_mappings m ON v.id = m.voter_id
+                        WHERE v.part_no = ? AND (v.is_deleted = 0 OR v.is_deleted IS NULL)
+                        ORDER BY CAST(v.serial_no AS INTEGER);
+                    """, (norm_part,))
+                    all_part_rows = cursor.fetchall()
+                    target_clean = clean_house_no(house_no)
+                    rows = [r for r in all_part_rows if clean_house_no(r["house_no"] or "") == target_clean]
+
+            parts_found = {}
             results = []
             for r in rows:
                 d = dict(r)
                 d["is_mapped"] = bool(d.get("mapping_id"))
                 results.append(d)
-            return results
+                p = str(d.get("part_no") or "").strip()
+                if p:
+                    parts_found[p] = parts_found.get(p, 0) + 1
+
+            # Format parts_found list
+            parts_summary = [{"part_no": p, "count": c} for p, c in sorted(parts_found.items(), key=lambda x: (int(x[0]) if x[0].isdigit() else 9999))]
+            primary_part = norm_part if (not is_all_parts and norm_part) else (parts_summary[0]["part_no"] if parts_summary else "")
+
+            return {
+                "voters": results,
+                "count": len(results),
+                "parts_found": parts_summary,
+                "active_part": primary_part,
+                "house_no": house_no
+            }
+
+    @classmethod
+    def get_distinct_parts(cls, db_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Returns all distinct parts in the voter database with voter counts."""
+        if not cls._initialized:
+            cls.init_db(db_id=db_id)
+        with cls.get_connection(db_id=db_id, purpose="read") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT part_no, polling_station, COUNT(*) as voter_count
+                FROM voters
+                WHERE (is_deleted = 0 OR is_deleted IS NULL) AND part_no IS NOT NULL AND part_no != ''
+                GROUP BY part_no
+                ORDER BY CAST(part_no AS INTEGER);
+            """)
+            return [dict(r) for r in cursor.fetchall()]
+
+    @classmethod
+    def search_voter_candidate(
+        cls,
+        q: str,
+        part_no: Optional[str] = None,
+        limit: int = 30,
+        db_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        High-speed candidate search across the voter database for manual mapping.
+        Matches against EPIC, Name, Relative Name, or House No.
+        """
+        if not cls._initialized:
+            cls.init_db(db_id=db_id)
+        clean_q = (q or "").strip()
+        if not clean_q:
+            return []
+
+        # Detect Latin/English characters and transliterate
+        if re.search(r'[a-zA-Z]', clean_q):
+            from .ai_search import transliterate_latin_to_hindi
+            trans_q = transliterate_latin_to_hindi(clean_q)
+        else:
+            trans_q = clean_q
+
+        norm_q = clean_and_normalize_name(trans_q)
+        like_pat = f"%{norm_q}%"
+        raw_like = f"%{clean_q}%"
+
+        norm_part = str(part_no or "").strip()
+        has_part = bool(norm_part and norm_part.upper() not in ("ALL", "ANY", "-- समस्त भाग --"))
+
+        with cls.get_connection(db_id=db_id, purpose="read") as conn:
+            cls._ensure_mapping_table(conn)
+            cursor = conn.cursor()
+
+            sql = """
+                SELECT v.id, v.serial_no, v.part_no, v.name, v.relation_type, v.relation_name,
+                       v.house_no, v.age, v.gender, v.epic_no, v.caste_key, v.caste_source, v.caste_reason,
+                       v.is_muslim,
+                       m.id as mapping_id, m.family_id, m.member_id, m.member_name as mapped_member_name
+                FROM voters v
+                LEFT JOIN survey_voter_mappings m ON v.id = m.voter_id
+                WHERE (v.is_deleted = 0 OR v.is_deleted IS NULL)
+                  AND (
+                      v.name LIKE ?
+                      OR v.relation_name LIKE ?
+                      OR v.epic_no LIKE ?
+                      OR v.house_no = ?
+                      OR v.serial_no = ?
+                  )
+            """
+            params: List[Any] = [like_pat, like_pat, raw_like, clean_q, clean_q if clean_q.isdigit() else -1]
+            if has_part:
+                sql += " AND v.part_no = ?"
+                params.append(norm_part)
+
+            sql += """
+                ORDER BY
+                  CASE WHEN v.epic_no = ? THEN 1
+                       WHEN v.name = ? THEN 2
+                       WHEN v.name LIKE ? THEN 3
+                       ELSE 4
+                  END,
+                  CAST(v.part_no AS INTEGER),
+                  CAST(v.serial_no AS INTEGER)
+                LIMIT ?;
+            """
+            params.extend([clean_q.upper(), norm_q, like_pat, limit])
+
+            cursor.execute(sql, params)
+            res = []
+            for r in cursor.fetchall():
+                d = dict(r)
+                d["is_mapped"] = bool(d.get("mapping_id"))
+                res.append(d)
+            return res
 
     @classmethod
     def save_member_voter_mapping(

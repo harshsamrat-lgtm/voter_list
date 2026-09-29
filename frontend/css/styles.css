@@ -1,54 +1,58 @@
 /* ==========================================================================
-   UP Voter List AI Converter — Royal Bhagwa (Saffron) & White Stylesheet
-   Created with vibrant Saffron (#EA580C, #F97316), Gold (#F59E0B), and Crisp White (#FFFFFF)
+   मतदाता सेवा मास्टर (Voter Service Master) — Professional Executive Stylesheet
+   Designed with sleek modern Slate (#0F172A, #334155), Saffron (#EA580C), 
+   Forest Emerald (#059669), and Crisp White (#FFFFFF)
    ========================================================================== */
 
 :root {
-    /* Backgrounds: Crisp White and Gentle Warm Saffron-Ivory */
-    --bg-main: #FDF8F5;               /* Subtle warm saffron-ivory */
-    --bg-surface: #FFFFFF;            /* Pure clean white */
-    --bg-surface-elevated: #FFF7ED;   /* Soft warm cream / light saffron */
-    --bg-glass: rgba(255, 255, 255, 0.95);
+    /* Backgrounds: Crisp Modern Canvas */
+    --bg-main: #F8FAFC;               /* Clean modern slate canvas */
+    --bg-surface: #FFFFFF;            /* Pure crisp white */
+    --bg-surface-elevated: #F1F5F9;   /* Clean subtle elevated slate */
+    --bg-glass: rgba(255, 255, 255, 0.94);
     --bg-glass-card: rgba(255, 255, 255, 0.98);
     
-    /* Borders: Warm Saffron Accents */
-    --border-subtle: #FED7AA;         /* Soft warm saffron */
-    --border-accent: #FDBA74;         /* Rich saffron border */
-    --border-focus: #EA580C;          /* Royal Bhagwa focus */
+    /* Professional Borders */
+    --border-subtle: #E2E8F0;         /* Clean neutral divider */
+    --border-accent: #CBD5E1;         /* Crisp boundary line */
+    --border-focus: #EA580C;          /* Professional brand focus */
     
-    /* High-contrast Typography on White */
-    --text-primary: #1C120C;          /* Rich charcoal-brown for crystal clarity */
-    --text-secondary: #6B4F3B;        /* Warm amber-brown for labels and subtitles */
-    --text-muted: #9A7B66;            /* Subtle muted warm brown for placeholders */
+    /* High-contrast Executive Typography */
+    --text-primary: #0F172A;          /* Deep Slate 900 for razor-sharp clarity */
+    --text-secondary: #334155;        /* Slate 700 for subtitles and labels */
+    --text-muted: #64748B;            /* Slate 500 for secondary hints */
     
-    /* Bhagwa / Saffron Brand Palette */
-    --primary: #EA580C;               /* Royal Bhagwa / Saffron */
-    --primary-hover: #C2410C;         /* Deep Kesari */
-    --primary-glow: rgba(234, 88, 12, 0.25);
+    /* Brand Accent Colors */
+    --primary: #EA580C;               /* Saffron orange */
+    --primary-hover: #C2410C;         /* Deep saffron */
+    --primary-glow: rgba(234, 88, 12, 0.18);
     
-    --accent: #F59E0B;                /* Saffron Gold / Amber */
-    --accent-hover: #D97706;
+    --accent: #D97706;                /* Refined amber gold */
+    --accent-hover: #B45309;
     
-    --saffron-bright: #FF7700;
+    --saffron-bright: #F97316;
     --saffron-gold: #D97706;
     --saffron-bg: #FFF7ED;
-    --saffron-border: #FED7AA;
+    --saffron-border: #FDBA74;
     
     /* Semantic Colors */
     --emerald: #059669;
-    --emerald-glow: rgba(5, 150, 105, 0.2);
+    --emerald-glow: rgba(5, 150, 105, 0.16);
     --pink: #DB2777;
     --blue: #2563EB;
     --amber: #D97706;
     --rose: #DC2626;
     
     --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 18px;
-    --radius-xl: 24px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
     
-    --shadow-card: 0 4px 20px -2px rgba(234, 88, 12, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
-    --shadow-glow: 0 0 24px rgba(234, 88, 12, 0.22);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+    --shadow-glow: 0 0 20px rgba(234, 88, 12, 0.15);
     
     --font-sans: 'Inter', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-heading: 'Outfit', 'Noto Sans Devanagari', sans-serif;
@@ -72,9 +76,9 @@ body {
     min-height: 100%;
     line-height: 1.5;
     background-image: 
-        radial-gradient(at 0% 0%, rgba(234, 88, 12, 0.07) 0px, transparent 55%),
-        radial-gradient(at 100% 100%, rgba(245, 158, 11, 0.06) 0px, transparent 50%),
-        radial-gradient(at 50% 30%, rgba(194, 65, 12, 0.04) 0px, transparent 65%);
+        radial-gradient(at 0% 0%, rgba(234, 88, 12, 0.03) 0px, transparent 45%),
+        radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.02) 0px, transparent 40%),
+        radial-gradient(at 50% 30%, rgba(15, 23, 42, 0.015) 0px, transparent 55%);
     background-attachment: fixed;
     overflow-x: hidden;
 }
@@ -147,12 +151,16 @@ body.scanning-active #converterView {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 20px;
-    background: #FFFFFF;
+    padding: 10px 22px;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(16px);
     border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-card);
-    margin-bottom: 10px;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+    margin-bottom: 12px;
+    position: sticky;
+    top: 4px;
+    z-index: 100;
 }
 
 .nav-brand {

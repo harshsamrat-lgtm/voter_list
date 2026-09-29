@@ -62,7 +62,7 @@ class PDFDetector:
         # Classify voter list format: UP Nagar Nikay (ULB) vs ECI Legislative Assembly
         is_ulb = ULBExtractor.is_ulb_pdf(pdf_path)
         voter_format = "UP_NAGAR_NIKAY" if is_ulb else "ECI_ASSEMBLY"
-        format_label = "उत्तर प्रदेश नगर निकाय (ULB)" if is_ulb else "भारत निर्वाचन आयोग (ECI विधानसभा)"
+        format_label = "राज्य नगर निकाय (ULB)" if is_ulb else "भारत निर्वाचन आयोग (विधानसभा)"
             
         return {
             "total_pages": total_pages,

@@ -166,7 +166,7 @@ const VoterAuth = (function() {
         return fetch(url, { ...options, headers });
     }
 
-    // 5. Login API
+    // 5. Login API with Timeout & Robust Error Protection
     async function login(username, password) {
         const payload = {
             username: username.trim(),
@@ -176,19 +176,39 @@ const VoterAuth = (function() {
             device_fp: getDeviceFingerprint()
         };
 
-        const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-        const data = await res.json();
-        if (!res.ok) {
-            throw new Error(data.detail || data.message || "लॉगिन विफल रहा।");
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            let data;
+            try {
+                data = await res.json();
+            } catch (jsonErr) {
+                throw new Error("सर्वर से अमान्य उत्तर प्राप्त हुआ।");
+            }
+
+            if (!res.ok) {
+                throw new Error(data.detail || data.message || "लॉगिन विफल रहा।");
+            }
+
+            setSession(data.token, data.user);
+            return data;
+        } catch (err) {
+            clearTimeout(timeoutId);
+            if (err.name === 'AbortError') {
+                throw new Error("सर्वर से उत्तर मिलने में समय समाप्त हो गया (Timeout)। कृपया पुनः प्रयास करें।");
+            }
+            throw err;
         }
-
-        setSession(data.token, data.user);
-        return data;
     }
 
     // 6. Logout API

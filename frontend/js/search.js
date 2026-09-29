@@ -775,7 +775,7 @@ window.openSlipModal = async function(recordId) {
         state.currentSlip = v;
 
         // Populate Slip Paper
-        elements.slipAssembly.innerText = v.assembly || "उत्तर प्रदेश";
+        elements.slipAssembly.innerText = v.assembly || "विधान सभा";
         elements.slipPartNo.innerText = v.part_no ? `भाग संख्या: ${v.part_no}` : "--";
         elements.slipStation.innerText = v.polling_station || "मतदान स्थल सूची अनुसार";
         elements.slipSerial.innerText = String(v.serial_no || 0).padStart(4, '0');

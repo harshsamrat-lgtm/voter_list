@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UP वोटर लिस्ट</title>
+    <title>मतदाता सेवा मास्टर (Voter Service Master)</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,8 +70,8 @@
                     <img src="/assets/logo.png" alt="मतदाता सेवा लोगो" class="brand-logo-img">
                 </div>
                 <div class="brand-text">
-                    <h1>UP वोटर लिस्ट</h1>
-                    <p class="tagline">उत्तर प्रदेश निर्वाचक नामावली — उच्च सटीकता डिजिटल निष्कर्षण</p>
+                    <h1>मतदाता सेवा मास्टर</h1>
+                    <p class="tagline">निर्वाचक नामावली (मतदाता सूची) — उच्च सटीकता डिजिटल निष्कर्षण</p>
                 </div>
             </div>
             
@@ -284,7 +284,7 @@
                     <div class="upload-hero-bar">
                         <div class="upload-brand-tag">
                             <i data-lucide="sparkles" class="sparkle-icon"></i>
-                            <span>AI निर्वाचक नामावली डिजिटल निष्कर्षण</span>
+                            <span>डिजिटल निर्वाचक नामावली निष्कर्षण</span>
                         </div>
                         <div class="target-db-pill" title="नया स्कैन इसी डेटाबेस में सुरक्षित होगा">
                             <i data-lucide="database"></i>
@@ -294,7 +294,7 @@
 
                     <div class="upload-main-heading">
                         <h2>मतदाता सूची (Electoral Roll) PDF अपलोड करें</h2>
-                        <p class="subtitle">उत्तर प्रदेश के किसी भी विधानसभा/भाग की वोटर लिस्ट PDF चुनें या ड्रैग करें</p>
+                        <p class="subtitle">किसी भी विधानसभा/भाग की वोटर लिस्ट PDF चुनें या ड्रैग करें</p>
                     </div>
 
                     <div class="dropzone" id="dropzone">
@@ -318,7 +318,7 @@
                     </div>
                 </section>
 
-                <!-- Step 2: Processing Progress (Unified AI Scanner Console - Zero Scroll) -->
+                <!-- Step 2: Processing Progress (Unified Scanner Console - Zero Scroll) -->
                 <section class="section-card progress-section progress-card-hero" id="progressSection" style="display: none;">
                     <div class="scanner-console-card" id="scannerTimerCard">
                         <!-- Top Live Status & Engine Meta Header -->
@@ -339,7 +339,7 @@
                                     <span id="timerLiveBadgeText">लाइव स्कैनिंग चालू</span>
                                 </span>
                                 <span class="timer-engine-tag" id="timerEngineTag">
-                                    <i data-lucide="zap" style="width: 13px; height: 13px;"></i> AI OCR
+                                    <i data-lucide="zap" style="width: 13px; height: 13px;"></i> डिजिटल स्कैनर
                                 </span>
                             </div>
                         </div>
@@ -427,7 +427,7 @@
 
             <!-- Step 3: Analytics & Results Dashboard (Hidden by default) -->
             <section class="results-dashboard" id="resultsSection" style="display: none;">
-                <!-- Local AI Dual-Pass Error Correction Status Banner -->
+                <!-- Dual-Pass Quality Verification Status Banner -->
                 <div class="dual-pass-audit-banner" id="dualPassAuditBanner" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1.5px solid #86efac; border-radius: var(--radius-md); padding: 14px 20px; margin-bottom: 20px; box-shadow: var(--shadow-sm);">
                     <div style="display: flex; align-items: center; gap: 14px;">
                         <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(22, 163, 74, 0.15); color: #16a34a; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
@@ -435,10 +435,10 @@
                         </div>
                         <div>
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <strong style="color: #166534; font-size: 1rem;">लोकल AI दोहरा स्कैन व त्रुटि सुधार (Local AI Dual-Pass Verified)</strong>
+                                <strong style="color: #166534; font-size: 1rem;">दोहरा स्कैन व त्रुटि सुधार (Dual-Pass Verified)</strong>
                                 <span class="badge" id="dualPassBadge" style="background: #22c55e; color: white; font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; font-weight: 600;">सत्यापित</span>
                             </div>
-                            <p id="dualPassSummaryText" style="color: #15803d; font-size: 0.84rem; margin: 3px 0 0;">लोकल AI ने स्कैन गुणवत्ता की स्वतः जाँच की: पहले पास में सही मिले कार्ड सुरक्षित रखे गए, त्रुटिपूर्ण कार्ड्स में स्वतः सुधार किया गया।</p>
+                            <p id="dualPassSummaryText" style="color: #15803d; font-size: 0.84rem; margin: 3px 0 0;">सिस्टम द्वारा स्कैन गुणवत्ता की स्वतः जाँच की गई: पहले पास में सही मिले कार्ड सुरक्षित रखे गए, त्रुटिपूर्ण कार्ड्स में स्वतः सुधार किया गया।</p>
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -446,7 +446,7 @@
                             <i data-lucide="list-checks" style="width: 16px; height: 16px;"></i>
                             <span>सुधार रिपोर्ट देखें (<span id="correctionsCountText">0</span>)</span>
                         </button>
-                        <button type="button" class="btn-outline-sm" id="retriggerScanCorrectBtn" title="पुनः स्कैन व लोकल AI त्रुटि सुधार चलाएं" style="background: white; border: 1.5px solid #cbd5e1; color: #475569; font-weight: 600; padding: 8px 14px; border-radius: var(--radius-md); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                        <button type="button" class="btn-outline-sm" id="retriggerScanCorrectBtn" title="पुनः स्कैन व त्रुटि सुधार चलाएं" style="background: white; border: 1.5px solid #cbd5e1; color: #475569; font-weight: 600; padding: 8px 14px; border-radius: var(--radius-md); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                             <i data-lucide="refresh-cw" style="width: 15px; height: 15px;"></i>
                             <span>पुनः सुधार चलाएं</span>
                         </button>
@@ -664,7 +664,7 @@
                                 <div class="a4-sheet-header">
                                     <div class="a4-h-top-row">
                                         <span class="a4-eci-pill">भारत निर्वाचन आयोग (ECI)</span>
-                                        <h4 class="a4-sheet-title">उत्तर प्रदेश विधान सभा निर्वाचक नामावली (A4 पेपर प्रारूप)</h4>
+                                        <h4 class="a4-sheet-title">विधान सभा निर्वाचक नामावली (A4 पेपर प्रारूप)</h4>
                                         <span class="a4-page-badge-pill" id="paperA4PageBadge">📄 पृष्ठ संख्या: 1</span>
                                     </div>
                                     <div class="a4-h-meta-row">
@@ -871,7 +871,7 @@
                                 <i data-lucide="check-circle" style="width: 17px; height: 17px;"></i>
                                 <span>एक क्लिक में बदलें</span>
                             </button>
-                            <button type="button" class="btn-outline" id="rescanPartBtn" title="इस भाग के सभी मतदाताओं पर लोकल AI त्रुटि सुधार चलाएं" style="background: white; border: 1px solid #d97706; color: #d97706; font-weight: 600; height: 42px; padding: 0 14px; border-radius: var(--radius-md); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+                            <button type="button" class="btn-outline" id="rescanPartBtn" title="इस भाग के सभी मतदाताओं पर त्रुटि सुधार चलाएं" style="background: white; border: 1px solid #d97706; color: #d97706; font-weight: 600; height: 42px; padding: 0 14px; border-radius: var(--radius-md); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
                                 <i data-lucide="sparkles" style="width: 15px; height: 15px;"></i>
                                 <span>त्रुटि सुधार</span>
                             </button>
@@ -1316,7 +1316,7 @@
                                 <div class="a4-sheet-header">
                                     <div class="a4-h-top-row">
                                         <span class="a4-eci-pill">भारत निर्वाचन आयोग (ECI)</span>
-                                        <h4 class="a4-sheet-title">उत्तर प्रदेश विधान सभा निर्वाचक नामावली (A4 पेपर प्रारूप)</h4>
+                                        <h4 class="a4-sheet-title">विधान सभा निर्वाचक नामावली (A4 पेपर प्रारूप)</h4>
                                         <span class="a4-page-badge-pill" id="dbPaperA4PageBadge">📄 पृष्ठ संख्या: 1</span>
                                     </div>
                                     <div class="a4-h-meta-row">
@@ -1807,10 +1807,16 @@
                                 सभी मकान
                             </button>
                             <button class="filter-pill" id="filterAuditUnregisteredOnly" data-filter="unregistered" style="padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 1px solid #CBD5E1; background: white; color: #475569;">
-                                🔴 केवल बिना वोट वाले मकान
+                                🔴 बिना वोट वाले मकान
+                            </button>
+                            <button class="filter-pill" id="filterAuditForm6_18" data-filter="form6_18" style="padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 1px solid #CBD5E1; background: white; color: #475569;">
+                                🔴 18+ फॉर्म 6 वाले
+                            </button>
+                            <button class="filter-pill" id="filterAuditForm6_17" data-filter="form6_17" style="padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 1px solid #CBD5E1; background: white; color: #475569;">
+                                🟡 17+ अग्रिम वाले
                             </button>
                             <button class="filter-pill" id="filterAuditRegisteredOnly" data-filter="registered" style="padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 1px solid #CBD5E1; background: white; color: #475569;">
-                                🟢 केवल पूर्ण पंजीकृत मकान
+                                🟢 पूर्ण पंजीकृत मकान
                             </button>
                         </div>
                     </div>
@@ -2470,9 +2476,11 @@
                             <span style="font-size: 0.8rem; color: #64748B; font-weight: 600; text-transform: uppercase;">सर्वे मकान (NPPropertyServey)</span>
                             <div style="font-size: 1rem; font-weight: 700; color: #1E293B; margin-top: 2px;" id="hvmSurveyHouseDetails"></div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 8px; background: #F8FAFC; padding: 6px 12px; border-radius: 8px; border: 1px solid #CBD5E1;">
+                        <div style="display: flex; align-items: center; gap: 8px; background: #F8FAFC; padding: 6px 12px; border-radius: 8px; border: 1px solid #CBD5E1; flex-wrap: wrap;">
                             <label style="font-size: 0.8rem; font-weight: 600; color: #475569;">भाग संख्या:</label>
-                            <input type="text" id="hvmPartNoInput" placeholder="221" style="width: 65px; padding: 4px 6px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.84rem; font-weight: 700; text-align: center;">
+                            <select id="hvmPartNoSelect" style="padding: 5px 8px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.84rem; font-weight: 700; background: white; max-width: 170px;">
+                                <option value="ALL">-- समस्त भाग (All Parts) --</option>
+                            </select>
                             <label style="font-size: 0.8rem; font-weight: 600; color: #475569; margin-left: 4px;">मकान संख्या:</label>
                             <input type="text" id="hvmHouseNoInput" placeholder="30" style="width: 75px; padding: 4px 6px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.84rem; font-weight: 700; text-align: center;">
                             <button type="button" onclick="loadHouseVotersManual()" style="background: #059669; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
@@ -2485,21 +2493,24 @@
                         </div>
                     </div>
 
-                    <!-- Tabs or Dual View -->
-                    <div style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 2px solid #E2E8F0; padding-bottom: 2px;">
+                    <!-- Tabs Header -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 2px solid #E2E8F0; padding-bottom: 2px; flex-wrap: wrap;">
                         <button type="button" id="hvmTabVotersBtn" class="hvm-tab-btn active" style="padding: 8px 16px; font-weight: 700; font-size: 0.9rem; border: none; background: transparent; cursor: pointer; border-bottom: 3px solid #059669; color: #059669;" onclick="switchHvmTab('voters')">
-                            🗳️ वोटर लिस्ट में पंजीकृत मतदाता (<span id="hvmVoterCountBadge">0</span>)
+                            🗳️ इस मकान के मतदाता (<span id="hvmVoterCountBadge">0</span>)
                         </button>
                         <button type="button" id="hvmTabMembersBtn" class="hvm-tab-btn" style="padding: 8px 16px; font-weight: 600; font-size: 0.9rem; border: none; background: transparent; cursor: pointer; border-bottom: 3px solid transparent; color: #64748B;" onclick="switchHvmTab('members')">
-                            👨‍👩‍👧‍👦 NPPropertyServey परिवार सदस्य व मैपिंग (<span id="hvmMemberCountBadge">0</span>)
+                            👨‍👩‍👧‍👦 सर्वे परिवार सदस्य एवं मैपिंग (<span id="hvmMemberCountBadge">0</span>)
+                        </button>
+                        <button type="button" id="hvmTabGlobalSearchBtn" class="hvm-tab-btn" style="padding: 8px 16px; font-weight: 600; font-size: 0.9rem; border: none; background: transparent; cursor: pointer; border-bottom: 3px solid transparent; color: #64748B;" onclick="switchHvmTab('global')">
+                            🌐 सम्पूर्ण डेटाबेस में खोजें व 1-क्लिक लिंक करें
                         </button>
                     </div>
 
                     <!-- Tab 1: House Voters Table -->
                     <div id="hvmVotersTabContent">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <span style="font-size: 0.84rem; color: #475569;">
-                                वोटर लिस्ट के उक्त मतदान केंद्र (भाग) एवं मकान संख्या में दर्ज सभी जीवित मतदाता:
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                            <span style="font-size: 0.84rem; color: #475569;" id="hvmVotersNoticeText">
+                                वोटर लिस्ट के इस मकान संख्या में दर्ज सभी जीवित मतदाता:
                             </span>
                             <input type="text" id="hvmVoterSearchInput" placeholder="इस मकान में नाम / EPIC खोजें..." onkeyup="filterHvmVoters()" style="padding: 6px 12px; font-size: 0.82rem; border-radius: 6px; border: 1px solid #CBD5E1; width: 220px;">
                         </div>
@@ -2509,11 +2520,11 @@
                                 <thead style="background: #F1F5F9; position: sticky; top: 0; z-index: 2; border-bottom: 2px solid #CBD5E1;">
                                     <tr>
                                         <th style="padding: 8px 12px; width: 50px; text-align: center;">क्र०</th>
+                                        <th style="padding: 8px 10px; width: 75px; text-align: center;">भाग नं०</th>
                                         <th style="padding: 8px 12px;">मतदाता का नाम</th>
                                         <th style="padding: 8px 12px;">संबंधी का नाम</th>
                                         <th style="padding: 8px 8px; width: 70px; text-align: center;">आयु/लिंग</th>
                                         <th style="padding: 8px 12px; width: 110px;">पहचान पत्र (EPIC)</th>
-                                        <th style="padding: 8px 12px; width: 100px;">जाति</th>
                                         <th style="padding: 8px 12px; width: 140px; text-align: center;">मैपिंग स्थिति / एक्शन</th>
                                     </tr>
                                 </thead>
@@ -2526,11 +2537,13 @@
 
                     <!-- Tab 2: Family Members & Mapping -->
                     <div id="hvmMembersTabContent" style="display: none;">
-                        <div style="background: #FEF3C7; border: 1px solid #FCD34D; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.84rem; color: #92400E; display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 1.1rem;">💡</span>
-                            <span>
-                                <strong>सुझाव:</strong> जिस सदस्य का नाम वोटर लिस्ट से स्वतः मैच नहीं हुआ (उदा० वर्तनी भिन्नता अथवा उपनाम न लिखा होना), आप नीचे दिए गए ड्रॉपडाउन से सीधे सही मतदाता चुनकर <strong>'मैप करें'</strong> बटन दबाएं। यह मैपिंग भविष्य के लिए स्थायी रूप से दर्ज हो जाएगी।
-                            </span>
+                        <div style="background: #FEF3C7; border: 1px solid #FCD34D; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.84rem; color: #92400E; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.1rem;">💡</span>
+                                <span>
+                                    <strong>सुझाव:</strong> जिस सदस्य का नाम स्वतः मैच नहीं हुआ, नीचे इस मकान के वोटर लिस्ट ड्रॉपडाउन से चुनें अथवा <strong>'🌐 खोजें व लिंक करें'</strong> बटन द्वारा पूरे डेटाबेस में 1-क्लिक से लिंक करें।
+                                </span>
+                            </div>
                         </div>
 
                         <div style="background: white; border-radius: 8px; border: 1px solid #E2E8F0; overflow: hidden;">
@@ -2541,13 +2554,85 @@
                                         <th style="padding: 8px 12px;">परिवार सदस्य (NPPropertyServey)</th>
                                         <th style="padding: 8px 12px;">संबंधी (पिता/पति)</th>
                                         <th style="padding: 8px 8px; width: 70px; text-align: center;">आयु/लिंग</th>
-                                        <th style="padding: 8px 10px; width: 90px;">रिश्ता</th>
+                                        <th style="padding: 8px 10px; width: 85px;">रिश्ता</th>
                                         <th style="padding: 8px 12px; min-width: 220px;">वोटर लिस्ट मैपिंग</th>
-                                        <th style="padding: 8px 12px; width: 110px; text-align: center;">कार्यवाही</th>
+                                        <th style="padding: 8px 12px; width: 140px; text-align: center;">कार्यवाही</th>
                                     </tr>
                                 </thead>
                                 <tbody id="hvmMembersTableBody">
                                     <!-- Dynamic member rows with mapping dropdowns -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Global Candidate Search & Instant Linking -->
+                    <div id="hvmGlobalTabContent" style="display: none;">
+                        <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; font-size: 0.85rem; color: #1E40AF; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.2rem;">🌐</span>
+                                <span>
+                                    <strong>ग्लोबल मतदाता लिंकिंग:</strong> यदि परिवार के किसी सदस्य का वोटर कार्ड किसी अन्य मकान या दूसरे भाग में दर्ज है, तो यहाँ नाम/EPIC से खोजकर सीधे 1-क्लिक में उस सदस्य से लिंक करें।
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Search Controls Bar -->
+                        <div style="background: white; border-radius: 8px; border: 1px solid #CBD5E1; padding: 12px 16px; margin-bottom: 14px; display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.5fr) minmax(140px, 0.8fr) auto; gap: 10px; align-items: flex-end;">
+                            <div>
+                                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
+                                    किसे लिंक करना है? (परिवार सदस्य) *
+                                </label>
+                                <select id="hvmGlobalTargetMemberSelect" style="width: 100%; height: 38px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.85rem; background: #F8FAFC;">
+                                    <!-- Populated dynamically with family members -->
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
+                                    मतदाता खोजें (नाम / पिता / EPIC / मकान) *
+                                </label>
+                                <div style="position: relative;">
+                                    <input type="text" id="hvmGlobalSearchInput" placeholder="नाम, पिता का नाम या EPIC लिखें..." onkeydown="if(event.key==='Enter') executeHvmGlobalSearch()" style="width: 100%; height: 38px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 10px; font-size: 0.88rem;">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
+                                    भाग फ़िल्टर (वैकल्पिक)
+                                </label>
+                                <select id="hvmGlobalPartSelect" style="width: 100%; height: 38px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.84rem; background: #F8FAFC;">
+                                    <option value="">-- समस्त भाग (All Parts) --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button type="button" onclick="executeHvmGlobalSearch()" id="btnExecHvmGlobalSearch" style="height: 38px; background: #2563EB; color: white; border: none; padding: 0 16px; border-radius: 6px; font-size: 0.88rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+                                    <i data-lucide="search" style="width: 16px; height: 16px;"></i>
+                                    <span>खोजें</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Candidates Results Table -->
+                        <div style="background: white; border-radius: 8px; border: 1px solid #E2E8F0; overflow: hidden; max-height: 360px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.84rem; text-align: left;">
+                                <thead style="background: #F1F5F9; position: sticky; top: 0; z-index: 2; border-bottom: 2px solid #CBD5E1;">
+                                    <tr>
+                                        <th style="padding: 8px 10px; width: 45px; text-align: center;">क्र०</th>
+                                        <th style="padding: 8px 10px; width: 70px; text-align: center;">भाग नं०</th>
+                                        <th style="padding: 8px 10px; width: 55px; text-align: center;">क्रम</th>
+                                        <th style="padding: 8px 12px;">मतदाता का नाम</th>
+                                        <th style="padding: 8px 12px;">संबंधी का नाम</th>
+                                        <th style="padding: 8px 8px; width: 70px; text-align: center;">आयु/लिंग</th>
+                                        <th style="padding: 8px 10px; width: 85px; text-align: center;">मकान सं०</th>
+                                        <th style="padding: 8px 12px; width: 110px;">पहचान पत्र (EPIC)</th>
+                                        <th style="padding: 8px 12px; width: 130px; text-align: center;">कार्यवाही</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hvmGlobalResultsTableBody">
+                                    <tr>
+                                        <td colspan="9" style="padding: 30px; text-align: center; color: #94A3B8;">
+                                            कृपया ऊपर नाम या पहचान पत्र (EPIC) लिखकर 'खोजें' बटन दबाएं।
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2707,7 +2792,7 @@
             </div>
         </div>
 
-        <!-- Modal: Local AI Scan & Corrections Detail Audit -->
+        <!-- Modal: Dual-Pass Quality Scan & Corrections Detail Audit -->
         <div class="modal-backdrop" id="correctionsDetailModal" style="display: none;">
             <div class="modal-card" style="max-width: 880px; width: 95%;">
                 <div class="modal-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px;">
@@ -2716,7 +2801,7 @@
                             <i data-lucide="cpu" style="color: #16a34a; width: 20px; height: 20px;"></i>
                         </div>
                         <div>
-                            <div style="font-size: 1.05rem; font-weight: 700;">लोकल AI दोहरा स्कैन व त्रुटि सुधार रिपोर्ट (Audit Report)</div>
+                            <div style="font-size: 1.05rem; font-weight: 700;">दोहरा स्कैन व त्रुटि सुधार रिपोर्ट (Audit Report)</div>
                             <div style="font-size: 0.78rem; font-weight: normal; color: #475569;">स्कैन गुणवत्ता विश्लेषण: पहले पास में सही कार्ड्स का संरक्षण एवं त्रुटिपूर्ण कार्ड्स का सुधार</div>
                         </div>
                     </div>
@@ -2746,7 +2831,7 @@
 
                     <!-- Explanatory note -->
                     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 16px; font-size: 0.8rem; color: #334155; line-height: 1.5;">
-                        <strong>💡 लोकल AI कार्यप्रणाली:</strong> लोकल AI प्रत्येक कार्ड की स्कैन शुद्धता की जाँच करता है। यदि पहले पास का डेटा सही (Valid EPIC, शुद्ध नाम, सुमेलित लिंग व सम्बन्ध) है, तो उसे <strong>यथावत बिना किसी परिवर्तन के</strong> सुरक्षित रखता है ताकि त्रुटिरहित डेटा न बिगड़े। केवल उन्हीं कार्ड्स पर दूसरे पास के एल्गोरिदम लागू किए जाते हैं जिनमें वास्तविक विसंगतियां पाई जाती हैं।
+                        <strong>💡 कार्यप्रणाली:</strong> सिस्टम प्रत्येक कार्ड की स्कैन शुद्धता की जाँच करता है। यदि पहले पास का डेटा सही (Valid EPIC, शुद्ध नाम, सुमेलित लिंग व सम्बन्ध) है, तो उसे <strong>यथावत बिना किसी परिवर्तन के</strong> सुरक्षित रखता है ताकि त्रुटिरहित डेटा न बिगड़े। केवल उन्हीं कार्ड्स पर दूसरे पास के एल्गोरिदम लागू किए जाते हैं जिनमें वास्तविक विसंगतियां पाई जाती हैं।
                     </div>
 
                     <!-- Corrections Table -->

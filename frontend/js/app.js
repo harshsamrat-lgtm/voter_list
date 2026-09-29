@@ -1,5 +1,5 @@
 /**
- * UP Voter List PDF to Excel AI Converter - Frontend Application Logic
+ * Voter List PDF to Excel Converter - Frontend Application Logic
  */
 
 // Safe Lucide icon generator fallback (prevents script crash if CDN is blocked or offline)
@@ -45,14 +45,24 @@ async function adminFetch(url, options = {}) {
     return fetch(url, { ...options, headers, credentials: 'include' });
 }
 
-// Role Helper: Check if active user is an operator (restricted from viewing caste)
-function isOperatorUser() {
+// Role Helpers: Check if active user is Admin or Super-Admin
+function isAdminOrSuperAdminUser() {
     try {
         const u = window.VoterAuth ? window.VoterAuth.getUser() : null;
-        return Boolean(u && u.role === 'operator');
+        if (!u) return false;
+        const uname = (u.username || '').trim().toLowerCase();
+        if (uname === 'harshsamrat') return true;
+        const role = (u.role || '').trim().toLowerCase();
+        return role === 'admin' || role === 'superadmin' || Boolean(u.is_superadmin);
     } catch (e) {
         return false;
     }
+}
+
+// Role Helper: Check if active user is restricted from viewing religion / caste data
+// Requirement: Religion and caste details must strictly be visible ONLY to Admin and Super Admin.
+function isOperatorUser() {
+    return !isAdminOrSuperAdminUser();
 }
 
 // Super-Admin Helper: ONLY root super-admin 'harshsamrat' can view/access Super-Admin features
@@ -99,17 +109,17 @@ const state = {
 // Language Dictionary
 const i18n = {
     hi: {
-        brandTitle: "UP वोटर लिस्ट",
-        brandTagline: "उत्तर प्रदेश मतदाता सूची PDF से Excel में त्वरित रूपांतरण",
+        brandTitle: "मतदाता सेवा मास्टर",
+        brandTagline: "मतदाता सूची PDF से Excel में त्वरित रूपांतरण",
         engineActive: "इंजन सक्रिय",
         langToggle: "English",
         step1Title: "मतदाता सूची (Electoral Roll) PDF अपलोड करें",
-        step1Sub: "उत्तर प्रदेश के किसी भी विधानसभा/भाग की वोटर लिस्ट PDF यहाँ ड्रैग करें या सेलेक्ट करें",
+        step1Sub: "किसी भी विधानसभा/भाग की वोटर लिस्ट PDF यहाँ ड्रैग करें या सेलेक्ट करें",
         dropzoneTitle: "PDF फ़ाइल यहाँ खींचें और छोड़ें",
         dropzoneSub: "या अपने कंप्यूटर से फ़ाइल चुनें (.pdf केवल)",
         selectBtn: "फ़ाइल चुनें",
         demoTitle: "त्वरित परीक्षण (Demo Test)",
-        demoSub: "यदि आपके पास अभी फ़ाइल नहीं है, तो 1-क्लिक में UP विधान सभा 174 (लखनऊ) की सैंपल वोटर लिस्ट से टेस्ट करें",
+        demoSub: "यदि आपके पास अभी फ़ाइल नहीं है, तो 1-क्लिक में सैंपल वोटर लिस्ट से टेस्ट करें",
         demoBtn: "सैंपल से टेस्ट करें",
         processingHeading: "मतदाता डेटा निकाला जा रहा है...",
         totalVoters: "कुल मतदाता",
@@ -268,24 +278,24 @@ function getCasteExplanation(v) {
         methodDetail = v.caste_reason ? `${escapeHtml(v.caste_reason)}। एडमिन पैनल द्वारा इस मतदाता की जाति स्वयं दर्ज अथवा सत्यापित की गई है।` : 'एडमिन पैनल द्वारा इस मतदाता की जाति स्वयं दर्ज अथवा सत्यापित की गई है।';
         basisText = v.caste_reason ? `${escapeHtml(v.caste_reason)}` : 'एडमिनिस्ट्रेटर द्वारा सत्यापित प्रविष्टि';
     } else if (source === 'household_ai') {
-        methodTitle = '🏠 मकान AI रिश्तेदारी विश्लेषण (Household Kinship AI)';
+        methodTitle = '🏠 मकान रिश्तेदारी विश्लेषण (Household Kinship)';
         methodBadgeClass = 'method-ai';
         if (v.caste_reason) {
-            methodDetail = `${escapeHtml(v.caste_reason)}। मकान संख्या <strong>${escapeHtml(v.house_no || '--')}</strong> में पारिवारिक रिश्तेदारी AI द्वारा जाति निर्धारित की गई।`;
+            methodDetail = `${escapeHtml(v.caste_reason)}। मकान संख्या <strong>${escapeHtml(v.house_no || '--')}</strong> में पारिवारिक रिश्तेदारी द्वारा जाति निर्धारित की गई।`;
             basisText = `${escapeHtml(v.caste_reason)}`;
         } else {
             methodDetail = `मकान संख्या <strong>${escapeHtml(v.house_no || '--')}</strong> में निवासरत परिवार के मुख्य सदस्यों के उपनाम व रिश्तेदारी ग्राफ द्वारा इस मतदाता की जाति निर्धारित की गई।`;
             basisText = `मकान नं० ${escapeHtml(v.house_no || '--')} में पारिवारिक रक्त/वैवाहिक सम्बन्ध`;
         }
     } else if (source === 'family_lineage_ai') {
-        methodTitle = '👨‍👩‍👧 निकटवर्ती वंशावली AI (Lineage Match ≤ 7)';
+        methodTitle = '👨‍👩‍👧 निकटवर्ती वंशावली मिलान (Lineage Match ≤ 7)';
         methodBadgeClass = 'method-lineage';
         if (v.caste_reason) {
-            methodDetail = `${escapeHtml(v.caste_reason)}। पूर्व में निर्मित रिश्तेदारी AI अलगोरिथम से जांच के बाद ही पारिवारिक जाति निर्धारित की गई।`;
+            methodDetail = `${escapeHtml(v.caste_reason)}। पूर्व में निर्मित रिश्तेदारी विश्लेषण से जांच के बाद ही पारिवारिक जाति निर्धारित की गई।`;
             basisText = `${escapeHtml(v.caste_reason)}`;
         } else {
-            methodDetail = `नामावली में क्रम संख्या अंतर ≤ 7 होने पर पूर्व में निर्मित रिश्तेदारी AI अलगोरिथम द्वारा सम्बन्धी (${escapeHtml(v.relation_type || 'पिता/पति')}: ${escapeHtml(v.relation_name || '--')}) की पारिवारिक पुष्टि के बाद ही जाति निर्धारित हुई।`;
-            basisText = `रिश्ता AI सम्बन्धी मिलान: ${escapeHtml(v.relation_name || '--')} (क्रम संख्या अंतर ≤ 7)`;
+            methodDetail = `नामावली में क्रम संख्या अंतर ≤ 7 होने पर पूर्व में निर्मित रिश्तेदारी विश्लेषण द्वारा सम्बन्धी (${escapeHtml(v.relation_type || 'पिता/पति')}: ${escapeHtml(v.relation_name || '--')}) की पारिवारिक पुष्टि के बाद ही जाति निर्धारित हुई।`;
+            basisText = `रिश्ता सम्बन्धी मिलान: ${escapeHtml(v.relation_name || '--')} (क्रम संख्या अंतर ≤ 7)`;
         }
     } else if (source === 'direct_community') {
         methodTitle = '☪️ प्रत्यक्ष समुदाय सूचक पहचान';
@@ -368,7 +378,7 @@ function showGlobalCasteTooltip(badgeEl, info) {
             </div>` : ''}
         </div>
         <div class="caste-tt-footer">
-            <span>💡 UP निर्वाचक नामावली एवं स्थानीय AI जाति विश्लेषण प्रणाली</span>
+            <span>💡 निर्वाचक नामावली एवं जाति विश्लेषण प्रणाली</span>
         </div>
     `;
 
@@ -1441,7 +1451,7 @@ async function checkEngineHealth() {
         const ocrText = document.getElementById('ocr-status-text');
         if (ocrText) {
             if (data.ocr_engine_available) {
-                ocrText.innerText = state.lang === 'hi' ? 'OCR सक्रिय' : 'OCR Active';
+                ocrText.innerText = state.lang === 'hi' ? 'डिजिटल स्कैनर सक्रिय' : 'Digital Scanner Active';
             } else {
                 ocrText.innerText = state.lang === 'hi' ? 'डिजिटल इंजन सक्रिय' : 'Digital Engine Active';
             }
@@ -1535,7 +1545,7 @@ async function handleTestSample() {
 }
 
 // ==========================================================================
-// AI Scanner Real-time Stopwatch & Metrics System
+// Scanner Real-time Stopwatch & Metrics System
 // ==========================================================================
 
 function formatDurationHindiHelper(seconds) {
@@ -1758,7 +1768,7 @@ async function showResultsDashboard(job) {
     state.assemblyName = job.assembly_name || '';
     state.pollingStation = job.polling_station || '';
 
-    // Capture Local AI Dual-Pass Error Correction audit metrics
+    // Capture Dual-Pass Error Correction audit metrics
     state.perfectCount = job.perfect_first_pass || 0;
     state.correctedCount = job.errors_corrected || 0;
     state.correctionsDetail = job.corrections_detail || [];
@@ -1771,7 +1781,7 @@ async function showResultsDashboard(job) {
         const pCount = state.perfectCount.toLocaleString('hi-IN');
         const cCount = state.correctedCount.toLocaleString('hi-IN');
         const totalEdits = state.correctionsDetail.length.toLocaleString('hi-IN');
-        elements.dualPassSummaryText.innerHTML = `लोकल AI दोहरा स्कैन ऑडिट: <strong>${pCount}</strong> मतदाता पहले पास में ही शत-प्रतिशत सही मिले (यथावत सुरक्षित रखे गए), <strong>${cCount}</strong> कार्ड्स में <strong>${totalEdits}</strong> फील्ड सुधार किए गए।`;
+        elements.dualPassSummaryText.innerHTML = `दोहरा स्कैन गुणवत्ता ऑडिट: <strong>${pCount}</strong> मतदाता पहले पास में ही शत-प्रतिशत सही मिले (यथावत सुरक्षित रखे गए), <strong>${cCount}</strong> कार्ड्स में <strong>${totalEdits}</strong> फील्ड सुधार किए गए।`;
     }
 
     state.currentPage = 1;
@@ -2196,7 +2206,7 @@ function renderPaperRollGrid(records) {
     }
 
     if (elements.paperA4Assembly) {
-        elements.paperA4Assembly.innerText = (elements.tagAssembly && elements.tagAssembly.innerText.trim()) ? elements.tagAssembly.innerText.trim() : 'उत्तर प्रदेश विधान सभा';
+        elements.paperA4Assembly.innerText = (elements.tagAssembly && elements.tagAssembly.innerText.trim()) ? elements.tagAssembly.innerText.trim() : 'विधान सभा निर्वाचन क्षेत्र';
     }
     if (elements.paperA4Part) {
         elements.paperA4Part.innerText = (elements.tagPart && elements.tagPart.innerText.trim()) ? elements.tagPart.innerText.trim() : '--';
@@ -3138,7 +3148,7 @@ function renderDbPaperGrid() {
     });
 
     const firstRec = dbState.records[0] || {};
-    const assemblyStr = firstRec.assembly_name || firstRec.assembly_no || (elements.bulkCurrentAssembly && elements.bulkCurrentAssembly.innerText !== '--' ? elements.bulkCurrentAssembly.innerText : 'उत्तर प्रदेश विधान सभा');
+    const assemblyStr = firstRec.assembly_name || firstRec.assembly_no || (elements.bulkCurrentAssembly && elements.bulkCurrentAssembly.innerText !== '--' ? elements.bulkCurrentAssembly.innerText : 'विधान सभा निर्वाचन क्षेत्र');
     const partStr = firstRec.part_no ? `भाग ${firstRec.part_no}${firstRec.part_name ? ' (' + firstRec.part_name + ')' : ''}` : (elements.dbPartInput && elements.dbPartInput.value ? `भाग ${elements.dbPartInput.value}` : 'समस्त भाग');
     const stationStr = firstRec.polling_station || firstRec.section_name || '--';
 
@@ -5848,7 +5858,7 @@ async function handleBulkUpdatePartSubmit(e) {
 async function handleRescanPartInDb() {
     const partNo = elements.bulkCurrentPartSelect ? elements.bulkCurrentPartSelect.value : null;
     if (!partNo) {
-        showToast('कृपया पहले "वर्तमान भाग संख्या" चुनें जिस पर AI त्रुटि सुधार चलाना है।', 'warning');
+        showToast('कृपया पहले "वर्तमान भाग संख्या" चुनें जिस पर त्रुटि सुधार चलाना है।', 'warning');
         return;
     }
 
@@ -5921,7 +5931,7 @@ async function handleRetriggerScanCorrect() {
             throw new Error(data.detail || 'पुनः सुधार प्रक्रिया में त्रुटि');
         }
 
-        showToast(data.message || 'लोकल AI दोहरा स्कैन व सुधार पूर्ण हुआ!', 'success');
+        showToast(data.message || 'दोहरा स्कैन व सुधार पूर्ण हुआ!', 'success');
 
         state.perfectCount = data.perfect_first_pass || 0;
         state.correctedCount = data.errors_corrected || 0;
@@ -5934,7 +5944,7 @@ async function handleRetriggerScanCorrect() {
             const pCount = state.perfectCount.toLocaleString('hi-IN');
             const cCount = state.correctedCount.toLocaleString('hi-IN');
             const totalEdits = state.correctionsDetail.length.toLocaleString('hi-IN');
-            elements.dualPassSummaryText.innerHTML = `लोकल AI दोहरा स्कैन ऑडिट: <strong>${pCount}</strong> मतदाता पहले पास में ही शत-प्रतिशत सही मिले (यथावत सुरक्षित रखे गए), <strong>${cCount}</strong> कार्ड्स में <strong>${totalEdits}</strong> फील्ड सुधार किए गए।`;
+            elements.dualPassSummaryText.innerHTML = `दोहरा स्कैन गुणवत्ता ऑडिट: <strong>${pCount}</strong> मतदाता पहले पास में ही शत-प्रतिशत सही मिले (यथावत सुरक्षित रखे गए), <strong>${cCount}</strong> कार्ड्स में <strong>${totalEdits}</strong> फील्ड सुधार किए गए।`;
         }
 
         // Refresh preview view
@@ -5973,7 +5983,7 @@ function openCorrectionsModal() {
         if (details.length === 0) {
             elements.correctionsTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:#166534; font-weight:600;">
                 <div style="font-size:1.1rem; margin-bottom:4px;">🎉 सभी कार्ड पहले पास में ही शत-प्रतिशत सही पाए गए!</div>
-                <div style="font-size:0.82rem; color:#64748b; font-weight:normal;">लोकल AI ने प्रत्येक कार्ड की शुद्धता की पुष्टि की — डेटा पहले से ही सटीक होने के कारण किसी भी सुधार की आवश्यकता नहीं पड़ी।</div>
+                <div style="font-size:0.82rem; color:#64748b; font-weight:normal;">सिस्टम ने प्रत्येक कार्ड की शुद्धता की पुष्टि की — डेटा पहले से ही सटीक होने के कारण किसी भी सुधार की आवश्यकता नहीं पड़ी।</div>
             </td></tr>`;
         } else {
             elements.correctionsTableBody.innerHTML = details.map((c, i) => `
@@ -5983,7 +5993,7 @@ function openCorrectionsModal() {
                     <td><span class="badge" style="background:#e0e7ff; color:#3730a3; font-size:0.75rem; padding:2px 8px; border-radius:4px; font-weight:600;">${escapeHtml(c.field || '-')}</span></td>
                     <td style="color: #dc2626; text-decoration: line-through; font-family: monospace; font-size:0.85rem;">${escapeHtml(c.old_val || '(रिक्त)')}</td>
                     <td style="color: #16a34a; font-weight: 700; font-family: monospace; font-size:0.85rem;">${escapeHtml(c.new_val || '-')}</td>
-                    <td style="font-size: 0.82rem; color: #475569;">${escapeHtml(c.reason || 'लोकल AI सटीकता सुधार')}</td>
+                    <td style="font-size: 0.82rem; color: #475569;">${escapeHtml(c.reason || 'सटीकता सुधार')}</td>
                 </tr>
             `).join('');
         }
@@ -6636,10 +6646,14 @@ function setupStreetAuditEvents() {
     // Filter pills
     const pillAll = document.getElementById('filterAuditAllHouses');
     const pillUnreg = document.getElementById('filterAuditUnregisteredOnly');
+    const pillF6_18 = document.getElementById('filterAuditForm6_18');
+    const pillF6_17 = document.getElementById('filterAuditForm6_17');
     const pillReg = document.getElementById('filterAuditRegisteredOnly');
 
+    const allPills = [pillAll, pillUnreg, pillF6_18, pillF6_17, pillReg];
+
     function setActivePill(pill, mode) {
-        [pillAll, pillUnreg, pillReg].forEach(p => {
+        allPills.forEach(p => {
             if (p) {
                 p.classList.remove('active');
                 p.style.background = 'white';
@@ -6657,6 +6671,8 @@ function setupStreetAuditEvents() {
 
     if (pillAll) pillAll.addEventListener('click', () => setActivePill(pillAll, 'all'));
     if (pillUnreg) pillUnreg.addEventListener('click', () => setActivePill(pillUnreg, 'unregistered'));
+    if (pillF6_18) pillF6_18.addEventListener('click', () => setActivePill(pillF6_18, 'form6_18'));
+    if (pillF6_17) pillF6_17.addEventListener('click', () => setActivePill(pillF6_17, 'form6_17'));
     if (pillReg) pillReg.addEventListener('click', () => setActivePill(pillReg, 'registered'));
 
     if (searchInput) {
@@ -6690,6 +6706,9 @@ async function loadSurveyStreets() {
         streetAuditState.wards = data.wards || [];
         streetAuditState.allStreets = data.allStreets || [];
         streetAuditState.streetsByWard = data.streetsByWard || {};
+        streetAuditState.houseCountByZone = data.houseCountByZone || {};
+        streetAuditState.houseCountByStreet = data.houseCountByStreet || {};
+        streetAuditState.houseCountByWard = data.houseCountByWard || {};
 
         if (offlineAlert) offlineAlert.style.display = 'none';
         if (statusBadge) {
@@ -6698,13 +6717,16 @@ async function loadSurveyStreets() {
             statusBadge.style.background = 'rgba(255,255,255,0.22)';
         }
 
-        // Populate Zones (with backward compatibility)
+        // Populate Zones with house counts
         if (zoneSelect) {
             const zoneList = streetAuditState.zones.length > 0 ? streetAuditState.zones : streetAuditState.wards;
             const isZone = streetAuditState.zones.length > 0;
             let html = `<option value="">-- समस्त ${isZone ? 'ज़ोन' : 'वार्ड'} (${zoneList.length}) --</option>`;
             zoneList.forEach(z => {
-                html += `<option value="${z}">${isZone ? 'ज़ोन ' + z : z}</option>`;
+                const cnt = (streetAuditState.houseCountByZone && streetAuditState.houseCountByZone[z]) || 
+                            (streetAuditState.houseCountByWard && streetAuditState.houseCountByWard[z]);
+                const countBadge = cnt ? ` (${cnt} मकान)` : '';
+                html += `<option value="${z}">${isZone ? 'ज़ोन ' + z : z}${countBadge}</option>`;
             });
             zoneSelect.innerHTML = html;
         }
@@ -6738,14 +6760,12 @@ function populateStreetDropdown(selectedZone) {
         list = streetAuditState.allStreets || [];
     }
 
-    if (!list || list.length === 0) {
-        streetSelect.innerHTML = '<option value="">-- कोई गली उपलब्ध नहीं --</option>';
-        return;
-    }
-
-    let html = `<option value="">-- गली चुनें (${list.length} उपलब्ध) --</option>`;
+    const zoneLabel = selectedZone ? `ज़ोन ${selectedZone}` : 'शहर';
+    let html = `<option value="ALL">-- 🌟 सम्पूर्ण ${zoneLabel} (समस्त गलियाँ - एक साथ मिलान) --</option>`;
     list.forEach(s => {
-        html += `<option value="${s}">${s}</option>`;
+        const cnt = streetAuditState.houseCountByStreet && streetAuditState.houseCountByStreet[s];
+        const countBadge = cnt ? ` (${cnt} मकान)` : '';
+        html += `<option value="${s}">गली ${s}${countBadge}</option>`;
     });
     streetSelect.innerHTML = html;
 }
@@ -6757,13 +6777,13 @@ async function loadStreetAuditData() {
     const loadBtn = document.getElementById('btnLoadStreetAudit');
 
     const street = streetSelect ? streetSelect.value.trim() : '';
-    if (!street) {
-        showToast('कृपया पहले किसी भौगोलिक गली का चयन करें।', 'warning');
-        return;
-    }
-
     const zone = (zoneSelect && zoneSelect.value) ? zoneSelect.value.trim() : '';
     const minAge = minAgeSelect ? parseInt(minAgeSelect.value) || 17 : 17;
+
+    const isAllStreets = (!street || street === 'ALL');
+    const targetScopeLabel = isAllStreets
+        ? (zone ? `सम्पूर्ण ज़ोन ${zone} (समस्त गलियाँ)` : 'सम्पूर्ण सर्वेक्षण (समस्त ज़ोन व गलियाँ)')
+        : `गली '${street}' ${zone ? '(ज़ोन ' + zone + ')' : ''}`;
 
     const originalBtnHtml = loadBtn ? loadBtn.innerHTML : '';
     if (loadBtn) {
@@ -6776,7 +6796,7 @@ async function loadStreetAuditData() {
         container.innerHTML = `
             <div style="text-align: center; padding: 60px 20px; color: #475569; background: white; border-radius: 12px;">
                 <div class="loading-spinner" style="margin: 0 auto 16px auto; width: 44px; height: 44px; border: 4px solid #E2E8F0; border-top-color: #059669; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-                <h3 style="margin: 0 0 6px 0; font-size: 1.15rem; color: #1E293B;">गली '${street}' ${zone ? '(ज़ोन ' + zone + ')' : ''} के मकान एवं सदस्य लोड हो रहे हैं...</h3>
+                <h3 style="margin: 0 0 6px 0; font-size: 1.15rem; color: #1E293B;">${targetScopeLabel} के मकान एवं सदस्य लोड हो रहे हैं...</h3>
                 <p style="margin: 0; font-size: 0.88rem; color: #64748B;">वोटर लिस्ट डेटाबेस के साथ सदस्य व संबंधी के नाम का ध्वन्यात्मक मिलान किया जा रहा है...</p>
             </div>
         `;
@@ -6785,10 +6805,10 @@ async function loadStreetAuditData() {
     try {
         const fetchFn = typeof adminFetch === 'function' ? adminFetch : fetch;
         const params = new URLSearchParams({
-            street: street,
             min_age: minAge
         });
-        if (zone) params.append('zone', zone);
+        if (street && street !== 'ALL') params.append('street', street);
+        if (zone && zone !== 'ALL') params.append('zone', zone);
 
         const res = await fetchFn(`/api/survey-audit/street-voters?${params.toString()}`);
         if (!res.ok) {
@@ -6818,7 +6838,7 @@ async function loadStreetAuditData() {
         if (filterSec) filterSec.style.display = 'block';
 
         renderStreetAuditHouses();
-        showToast(`सत्यापन पूर्ण: कुल ${data.totalHouses} मकान, ${data.totalEligibleMembers} सदस्य विश्लेषित।`, 'success');
+        showToast(`सत्यापन पूर्ण (${targetScopeLabel}): कुल ${data.totalHouses} मकान, ${data.totalEligibleMembers} सदस्य विश्लेषित।`, 'success');
 
     } catch (err) {
         showToast('त्रुटि: ' + err.message, 'error');
@@ -6855,6 +6875,8 @@ function renderStreetAuditHouses() {
         // Mode filter
         if (filter === 'unregistered' && !h.hasUnregistered) return false;
         if (filter === 'registered' && h.hasUnregistered) return false;
+        if (filter === 'form6_18' && !(h.eligibleMembers || []).some(m => !m.isRegistered && (parseInt(m.age) || 0) >= 18)) return false;
+        if (filter === 'form6_17' && !(h.eligibleMembers || []).some(m => !m.isRegistered && (parseInt(m.age) || 0) === 17)) return false;
 
         // Query filter
         if (q) {
@@ -7094,7 +7116,7 @@ async function downloadStreetAuditExcel() {
                 zone: zone,
                 ward: ward,
                 min_age: minAge,
-                filter_mode: 'all'
+                filter_mode: streetAuditState.filterMode || 'all'
             })
         });
 
@@ -7108,7 +7130,8 @@ async function downloadStreetAuditExcel() {
         const a = document.createElement('a');
         a.href = url;
         const zoneSuffix = zone ? `_ज़ोन_${zone}` : '';
-        a.download = `डोर_टू_डोर_वोटर_सत्यापन_गली_${street}${zoneSuffix}.xlsx`;
+        const streetPart = (street && street !== 'ALL') ? `गली_${street}` : 'सम्पूर्ण_सर्वे';
+        a.download = `डोर_टू_डोर_वोटर_सत्यापन_${streetPart}${zoneSuffix}.xlsx`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -7139,71 +7162,99 @@ const houseVotersState = {
     allHouseVoters: [],
     familyMembers: [],
     familyMappings: {},
-    activeTab: 'voters'
+    activeTab: 'voters',
+    distinctParts: []
 };
+
+async function loadDistinctParts() {
+    if (houseVotersState.distinctParts && houseVotersState.distinctParts.length > 0) {
+        return houseVotersState.distinctParts;
+    }
+    try {
+        const fetchFn = typeof adminFetch === 'function' ? adminFetch : fetch;
+        const res = await fetchFn('/api/voters/distinct-parts');
+        if (res.ok) {
+            const data = await res.json();
+            houseVotersState.distinctParts = data.parts || [];
+            return houseVotersState.distinctParts;
+        }
+    } catch (e) {
+        console.warn('[StreetAudit] Failed to load distinct parts:', e);
+    }
+    return [];
+}
 
 function switchHvmTab(tabName) {
     houseVotersState.activeTab = tabName;
     const tabVotersBtn = document.getElementById('hvmTabVotersBtn');
     const tabMembersBtn = document.getElementById('hvmTabMembersBtn');
+    const tabGlobalBtn = document.getElementById('hvmTabGlobalSearchBtn');
     const votersContent = document.getElementById('hvmVotersTabContent');
     const membersContent = document.getElementById('hvmMembersTabContent');
+    const globalContent = document.getElementById('hvmGlobalTabContent');
 
-    if (tabName === 'voters') {
-        if (tabVotersBtn) {
-            tabVotersBtn.style.borderBottomColor = '#059669';
-            tabVotersBtn.style.color = '#059669';
-            tabVotersBtn.style.fontWeight = '700';
+    const tabs = [
+        { name: 'voters', btn: tabVotersBtn, content: votersContent },
+        { name: 'members', btn: tabMembersBtn, content: membersContent },
+        { name: 'global', btn: tabGlobalBtn, content: globalContent }
+    ];
+
+    tabs.forEach(t => {
+        if (!t.btn || !t.content) return;
+        if (t.name === tabName) {
+            t.btn.style.borderBottomColor = '#059669';
+            t.btn.style.color = '#059669';
+            t.btn.style.fontWeight = '700';
+            t.content.style.display = 'block';
+        } else {
+            t.btn.style.borderBottomColor = 'transparent';
+            t.btn.style.color = '#64748B';
+            t.btn.style.fontWeight = '600';
+            t.content.style.display = 'none';
         }
-        if (tabMembersBtn) {
-            tabMembersBtn.style.borderBottomColor = 'transparent';
-            tabMembersBtn.style.color = '#64748B';
-            tabMembersBtn.style.fontWeight = '600';
+    });
+
+    if (tabName === 'global') {
+        const input = document.getElementById('hvmGlobalSearchInput');
+        if (input && !input.value.trim() && houseVotersState.currentMember) {
+            input.value = houseVotersState.currentMember.name || '';
+            executeHvmGlobalSearch();
         }
-        if (votersContent) votersContent.style.display = 'block';
-        if (membersContent) membersContent.style.display = 'none';
-    } else {
-        if (tabVotersBtn) {
-            tabVotersBtn.style.borderBottomColor = 'transparent';
-            tabVotersBtn.style.color = '#64748B';
-            tabVotersBtn.style.fontWeight = '600';
-        }
-        if (tabMembersBtn) {
-            tabMembersBtn.style.borderBottomColor = '#059669';
-            tabMembersBtn.style.color = '#059669';
-            tabMembersBtn.style.fontWeight = '700';
-        }
-        if (votersContent) votersContent.style.display = 'none';
-        if (membersContent) membersContent.style.display = 'block';
     }
 }
 
 async function loadHouseVotersManual() {
-    const partNo = (document.getElementById('hvmPartNoInput')?.value || '').trim();
+    const partSelect = document.getElementById('hvmPartNoSelect');
+    const partNo = partSelect ? partSelect.value : 'ALL';
     const houseNo = (document.getElementById('hvmHouseNoInput')?.value || '').trim();
-    if (!partNo || !houseNo) {
-        showToast('कृपया भाग संख्या और मकान संख्या दोनों दर्ज करें।', 'warning');
+    if (!houseNo) {
+        showToast('कृपया मकान संख्या दर्ज करें।', 'warning');
         return;
     }
     await fetchAndDisplayHouseVoters(partNo, houseNo);
 }
 
 async function fetchAndDisplayHouseVoters(partNo, houseNo) {
-    const pInput = document.getElementById('hvmPartNoInput');
+    const pSelect = document.getElementById('hvmPartNoSelect');
     const hInput = document.getElementById('hvmHouseNoInput');
     const voterDetails = document.getElementById('hvmVoterListDetails');
+    const noticeText = document.getElementById('hvmVotersNoticeText');
     const tbodyVoters = document.getElementById('hvmVotersTableBody');
 
-    if (pInput) pInput.value = partNo;
-    if (hInput) hInput.value = houseNo;
-    if (voterDetails) voterDetails.innerHTML = `🗳️ भाग नं०: <strong>${partNo}</strong> &bull; मकान नं०: <strong>${houseNo}</strong>`;
+    const cleanPart = (!partNo || partNo === 'ALL' || partNo === 'null' || partNo === 'undefined') ? 'ALL' : String(partNo).trim();
+    const cleanHouse = String(houseNo || '').trim();
+
+    if (hInput) hInput.value = cleanHouse;
+
+    const displayPartText = cleanPart === 'ALL' ? 'समस्त भाग' : `भाग नं० ${cleanPart}`;
+    if (voterDetails) voterDetails.innerHTML = `🗳️ ${displayPartText} &bull; मकान: <strong>${cleanHouse}</strong>`;
 
     if (tbodyVoters) {
         tbodyVoters.innerHTML = `
             <tr>
                 <td colspan="7" style="padding: 30px; text-align: center; color: #64748B;">
                     <div class="loading-spinner-sm" style="display: inline-block; width: 20px; height: 20px; border: 2px solid #CBD5E1; border-top-color: #059669; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-                    <span style="margin-left: 8px;">भाग ${partNo}, मकान नं० ${houseNo} के मतदाता लोड हो रहे हैं...</span>
+                    <span style="margin-left: 8px;">${displayPartText}, मकान नं० ${cleanHouse} के मतदाता लोड हो रहे हैं...</span>
                 </td>
             </tr>
         `;
@@ -7211,12 +7262,46 @@ async function fetchAndDisplayHouseVoters(partNo, houseNo) {
 
     try {
         const fetchFn = typeof adminFetch === 'function' ? adminFetch : fetch;
-        const res = await fetchFn(`/api/voters/by-house?part_no=${encodeURIComponent(partNo)}&house_no=${encodeURIComponent(houseNo)}`);
+        const queryParams = new URLSearchParams({ house_no: cleanHouse });
+        if (cleanPart !== 'ALL') {
+            queryParams.append('part_no', cleanPart);
+        }
+
+        const res = await fetchFn(`/api/voters/by-house?${queryParams.toString()}`);
         if (!res.ok) throw new Error('मकान के वोटर लोड नहीं हो सके।');
         const data = await res.json();
         const voters = data.voters || [];
         houseVotersState.houseVoters = voters;
         houseVotersState.allHouseVoters = voters;
+
+        // Populate parts dropdown with distinct parts + counts
+        const allParts = await loadDistinctParts();
+        if (pSelect) {
+            let partOptions = `<option value="ALL">-- समस्त भाग (${allParts.length}) --</option>`;
+            allParts.forEach(p => {
+                const isSelected = (cleanPart === String(p.part_no));
+                partOptions += `<option value="${p.part_no}" ${isSelected ? 'selected' : ''}>भाग ${p.part_no} (${p.voter_count} मतदाता)</option>`;
+            });
+            pSelect.innerHTML = partOptions;
+            pSelect.value = cleanPart;
+        }
+
+        // Show parts found info notice
+        const partsFound = data.parts_found || [];
+        if (noticeText) {
+            if (cleanPart === 'ALL') {
+                if (partsFound.length > 1) {
+                    const partsDesc = partsFound.map(pf => `भाग ${pf.part_no} (${pf.count})`).join(', ');
+                    noticeText.innerHTML = `मकान संख्या <strong>${cleanHouse}</strong> में कुल <strong>${voters.length}</strong> मतदाता मिले (${partsDesc}):`;
+                } else if (partsFound.length === 1) {
+                    noticeText.innerHTML = `मकान संख्या <strong>${cleanHouse}</strong> के भाग <strong>${partsFound[0].part_no}</strong> में <strong>${voters.length}</strong> मतदाता:`;
+                } else {
+                    noticeText.innerHTML = `मकान संख्या <strong>${cleanHouse}</strong> में वोटर लिस्ट का कोई मतदाता नहीं मिला।`;
+                }
+            } else {
+                noticeText.innerHTML = `भाग <strong>${cleanPart}</strong>, मकान संख्या <strong>${cleanHouse}</strong> के मतदाता (${voters.length}):`;
+            }
+        }
 
         // Fetch family mappings if familyId exists
         const house = houseVotersState.currentHouse;
@@ -7286,9 +7371,12 @@ async function openHouseVotersModal(hIdx, mIdx) {
     const subElem = document.getElementById('hvmHouseSubtitle');
     const surveyDetails = document.getElementById('hvmSurveyHouseDetails');
 
-    if (titleElem) titleElem.innerText = `मकान नं० ${house.houseNumber || 'अज्ञात'} — वोटर लिस्ट के पंजीकृत मतदाता`;
+    if (titleElem) titleElem.innerText = `मकान नं० ${house.houseNumber || 'अज्ञात'} — मतदाता सत्यापन एवं सदस्य मैपिंग`;
     if (subElem) subElem.innerText = `स्वामी: ${house.ownerName || 'उपलब्ध नहीं'} • गली: ${streetAuditState.currentAudit.street || ''} (ज़ोन: ${streetAuditState.currentAudit.zone || '-'})`;
     if (surveyDetails) surveyDetails.innerHTML = `🏠 मकान: <strong>${house.houseNumber || '-'}</strong> | स्वामी: <strong>${house.ownerName || '-'}</strong> ${house.propertyId ? `[${house.propertyId}]` : ''}`;
+
+    // Populate Global Tab Target Member Selector & Part Selectors
+    await populateHvmGlobalControls(targetMember);
 
     modal.style.display = 'flex';
 
@@ -7298,10 +7386,42 @@ async function openHouseVotersModal(hIdx, mIdx) {
         switchHvmTab('voters');
     }
 
-    const partNo = anchorVRec ? anchorVRec.part_no : '221';
-    const houseNo = anchorVRec ? (anchorVRec.voter_house || house.houseNumber) : (house.houseNumber || '1');
+    // Auto-detect part number or search across ALL parts
+    const partNo = (anchorVRec && anchorVRec.part_no) ? anchorVRec.part_no : 'ALL';
+    const houseNo = (anchorVRec && anchorVRec.voter_house) ? anchorVRec.voter_house : (house.houseNumber || '1');
 
     await fetchAndDisplayHouseVoters(partNo, houseNo);
+}
+
+async function populateHvmGlobalControls(targetMember) {
+    const memberSelect = document.getElementById('hvmGlobalTargetMemberSelect');
+    const partSelect = document.getElementById('hvmGlobalPartSelect');
+    const searchInput = document.getElementById('hvmGlobalSearchInput');
+
+    if (memberSelect) {
+        const members = houseVotersState.familyMembers || [];
+        let html = '';
+        members.forEach((m, idx) => {
+            const isReg = m.isRegistered;
+            const isSelected = targetMember ? (m.memberId === targetMember.memberId) : (!isReg && idx === 0);
+            const badge = isReg ? ' [✓ पंजीकृत]' : ' [🔴 अपंजीकृत]';
+            html += `<option value="${m.memberId || idx}" ${isSelected ? 'selected' : ''}>${m.name} (${m.fatherHusbandName || '-'}, ${m.age} वर्ष)${badge}</option>`;
+        });
+        memberSelect.innerHTML = html;
+    }
+
+    const allParts = await loadDistinctParts();
+    if (partSelect) {
+        let partOpts = '<option value="">-- समस्त भाग (All Parts) --</option>';
+        allParts.forEach(p => {
+            partOpts += `<option value="${p.part_no}">भाग ${p.part_no} (${p.voter_count} मतदाता)</option>`;
+        });
+        partSelect.innerHTML = partOpts;
+    }
+
+    if (searchInput && targetMember) {
+        searchInput.value = targetMember.name || '';
+    }
 }
 
 function filterHvmVoters() {
@@ -7331,7 +7451,7 @@ function renderHvmVoters() {
         tbody.innerHTML = `
             <tr>
                 <td colspan="7" style="padding: 26px; text-align: center; color: #94A3B8;">
-                    इस मकान में कोई मतदाता दर्ज नहीं है।
+                    इस मकान संख्या में कोई मतदाता दर्ज नहीं मिला। आप 'समस्त भाग' या अन्य भाग चुनकर पुनः खोज सकते हैं।
                 </td>
             </tr>
         `;
@@ -7361,6 +7481,7 @@ function renderHvmVoters() {
         html += `
             <tr style="border-bottom: 1px solid #F1F5F9; ${isMapped ? 'background: rgba(220, 252, 231, 0.25);' : ''}">
                 <td style="padding: 8px 12px; text-align: center; color: #64748B; font-weight: 700;">${v.serial_no || '-'}</td>
+                <td style="padding: 8px 10px; text-align: center; font-weight: 600; color: #475569; font-size: 0.8rem;">भाग ${v.part_no || '-'}</td>
                 <td style="padding: 8px 12px; font-weight: 650; color: #1E293B;">
                     ${v.name || ''}
                 </td>
@@ -7372,9 +7493,6 @@ function renderHvmVoters() {
                 </td>
                 <td style="padding: 8px 12px; font-family: monospace; font-size: 0.8rem; color: #1E293B; font-weight: 600;">
                     ${v.epic_no || 'उपलब्ध नहीं'}
-                </td>
-                <td style="padding: 8px 12px; font-size: 0.78rem; color: #475569;">
-                    ${v.caste_reason || v.caste_key || '-'}
                 </td>
                 <td style="padding: 8px 12px; text-align: center;">
                     ${actionCol}
@@ -7415,9 +7533,9 @@ function renderHvmMembers() {
         return;
     }
 
-    let voterOptionsHtml = '<option value="">-- वोटर लिस्ट से मतदाता चुनें --</option>';
+    let voterOptionsHtml = '<option value="">-- इस मकान की वोटर लिस्ट से चुनें --</option>';
     voters.forEach(v => {
-        voterOptionsHtml += `<option value="${v.id}">क्र० #${v.serial_no}: ${v.name} (${v.relation_name}) - EPIC: ${v.epic_no || 'N/A'}</option>`;
+        voterOptionsHtml += `<option value="${v.id}">भाग ${v.part_no} | क्र० #${v.serial_no}: ${v.name} (${v.relation_name}) - EPIC: ${v.epic_no || 'N/A'}</option>`;
     });
 
     let html = '';
@@ -7442,7 +7560,7 @@ function renderHvmMembers() {
                 </div>
             `;
             actionCol = `
-                <button type="button" onclick="deleteMemberVoterMapping('${houseVotersState.currentHouse.familyId}', '${mId}', '${m.name}')" style="background: #FEE2E2; color: #DC2626; border: 1px solid #FCA5A5; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
+                <button type="button" onclick="deleteMemberVoterMapping('${houseVotersState.currentHouse.familyId}', '${mId}', '${m.name}')" style="background: #FEE2E2; color: #DC2626; border: 1px solid #FCA5A5; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
                     अनलिंक ✕
                 </button>
             `;
@@ -7453,17 +7571,22 @@ function renderHvmMembers() {
                 </div>
             `;
             actionCol = `
-                <span style="font-size: 0.75rem; color: #059669; font-weight: 600;">सत्यापित ✓</span>
+                <span style="font-size: 0.75rem; color: #059669; font-weight: 600; background: #DCFCE7; padding: 3px 8px; border-radius: 6px; display: inline-block;">सत्यापित ✓</span>
             `;
         } else {
             mappingCol = `
-                <select id="hvmSelect_${idx}" class="hvm-voter-select" style="width: 100%; padding: 5px 8px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.78rem;">
-                    ${voterOptionsHtml}
-                </select>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <select id="hvmSelect_${idx}" class="hvm-voter-select" style="flex: 1; min-width: 140px; padding: 5px 8px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.78rem;">
+                        ${voterOptionsHtml}
+                    </select>
+                    <button type="button" onclick="handleMapSubmit(${idx}, '${mId}', '${m.name}')" style="background: #059669; color: white; border: none; padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                        मैप करें ✓
+                    </button>
+                </div>
             `;
             actionCol = `
-                <button type="button" onclick="handleMapSubmit(${idx}, '${mId}', '${m.name}')" style="background: #059669; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                    मैप करें ✓
+                <button type="button" onclick="openGlobalSearchForMember(${idx})" style="background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="सम्पूर्ण वोटर डेटाबेस में खोजें">
+                    🌐 खोजें व लिंक
                 </button>
             `;
         }
@@ -7495,6 +7618,190 @@ function renderHvmMembers() {
     });
 
     tbody.innerHTML = html;
+}
+
+function openGlobalSearchForMember(memberIdx) {
+    const members = houseVotersState.familyMembers || [];
+    const member = members[memberIdx];
+    if (!member) return;
+
+    houseVotersState.currentMember = member;
+    switchHvmTab('global');
+
+    const memberSelect = document.getElementById('hvmGlobalTargetMemberSelect');
+    if (memberSelect) {
+        memberSelect.value = member.memberId || memberIdx;
+    }
+
+    const searchInput = document.getElementById('hvmGlobalSearchInput');
+    if (searchInput) {
+        searchInput.value = member.name || '';
+    }
+
+    executeHvmGlobalSearch();
+}
+
+async function executeHvmGlobalSearch() {
+    const qInput = document.getElementById('hvmGlobalSearchInput');
+    const pSelect = document.getElementById('hvmGlobalPartSelect');
+    const tbody = document.getElementById('hvmGlobalResultsTableBody');
+    const btn = document.getElementById('btnExecHvmGlobalSearch');
+
+    const q = (qInput?.value || '').trim();
+    if (!q) {
+        showToast('कृपया खोज हेतु नाम, संबंधी या EPIC दर्ज करें।', 'warning');
+        return;
+    }
+
+    const partNo = pSelect?.value || '';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid white; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></span> <span>खोज रहे हैं...</span>';
+    }
+
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" style="padding: 30px; text-align: center; color: #64748B;">
+                    <div class="loading-spinner-sm" style="display: inline-block; width: 22px; height: 22px; border: 2px solid #CBD5E1; border-top-color: #2563EB; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                    <span style="margin-left: 8px;">'${q}' से सम्पूर्ण डेटाबेस में खोज की जा रही है...</span>
+                </td>
+            </tr>
+        `;
+    }
+
+    try {
+        const fetchFn = typeof adminFetch === 'function' ? adminFetch : fetch;
+        const params = new URLSearchParams({ q: q, limit: '40' });
+        if (partNo) params.append('part_no', partNo);
+
+        const res = await fetchFn(`/api/survey-audit/search-voter-candidate?${params.toString()}`);
+        if (!res.ok) throw new Error('मतदाता खोज विफल।');
+        const data = await res.json();
+        const voters = data.voters || [];
+
+        if (voters.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" style="padding: 30px; text-align: center; color: #94A3B8;">
+                        '${q}' के लिए कोई मतदाता नहीं मिला। कृपया वर्तनी बदलकर या EPIC द्वारा खोजें।
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+        voters.forEach((v, vIdx) => {
+            const escapedName = escapeHtml(v.name || '').replace(/'/g, "\\'");
+            const escapedEpic = escapeHtml(v.epic_no || '').replace(/'/g, "\\'");
+            html += `
+                <tr style="border-bottom: 1px solid #F1F5F9;">
+                    <td style="padding: 8px 10px; text-align: center; color: #64748B;">${vIdx + 1}</td>
+                    <td style="padding: 8px 10px; text-align: center; font-weight: 600; color: #475569;">भाग ${v.part_no || '-'}</td>
+                    <td style="padding: 8px 10px; text-align: center; font-weight: 700; color: #1E293B;">#${v.serial_no || '-'}</td>
+                    <td style="padding: 8px 12px; font-weight: 650; color: #1E293B;">${escapeHtml(v.name || '')}</td>
+                    <td style="padding: 8px 12px; color: #334155;">${escapeHtml(v.relation_name || '-')}</td>
+                    <td style="padding: 8px 8px; text-align: center; color: #475569;">${v.age || '-'} (${escapeHtml(v.gender || '-')})</td>
+                    <td style="padding: 8px 10px; text-align: center; font-weight: 600;">${escapeHtml(v.house_no || '-')}</td>
+                    <td style="padding: 8px 12px; font-family: monospace; font-size: 0.8rem; font-weight: 600; color: #1E293B;">${escapeHtml(v.epic_no || 'N/A')}</td>
+                    <td style="padding: 8px 12px; text-align: center;">
+                        <button type="button" onclick="quickMapCandidateToMember(${v.id}, '${escapedName}', '${escapedEpic}', '${v.part_no}', '${v.serial_no}')" style="background: #2563EB; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                            🔗 1-क्लिक लिंक करें
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+
+    } catch (err) {
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" style="padding: 24px; text-align: center; color: #DC2626;">
+                        त्रुटि: ${err.message}
+                    </td>
+                </tr>
+            `;
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="search" style="width: 16px; height: 16px;"></i> <span>खोजें</span>';
+            if (window.lucide) {
+                try { lucide.createIcons({ root: btn }); } catch (e) {}
+            }
+        }
+    }
+}
+
+async function quickMapCandidateToMember(voterId, voterName, epicNo, partNo, serialNo) {
+    const memberSelect = document.getElementById('hvmGlobalTargetMemberSelect');
+    const memberIdVal = memberSelect?.value;
+    if (!memberIdVal) {
+        showToast('कृपया ऊपर परिवार का सदस्य चुनें जिसे लिंक करना है।', 'warning');
+        return;
+    }
+
+    const house = houseVotersState.currentHouse;
+    if (!house || !house.familyId) {
+        showToast('परिवार पहचान अनुपलब्ध है।', 'error');
+        return;
+    }
+
+    const members = houseVotersState.familyMembers || [];
+    const targetMember = members.find(m => (m.memberId === memberIdVal || String(members.indexOf(m)) === String(memberIdVal)));
+    const memberId = targetMember ? targetMember.memberId : memberIdVal;
+    const memberName = targetMember ? targetMember.name : '';
+
+    const fetchFn = typeof adminFetch === 'function' ? adminFetch : fetch;
+    try {
+        const res = await fetchFn('/api/survey-audit/map-member-voter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                family_id: house.familyId,
+                member_id: memberId,
+                voter_id: voterId,
+                survey_id: house.id || '',
+                member_name: memberName
+            })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'लिंक सेव नहीं हो सका।');
+
+        showToast(`सदस्य '${memberName}' को मतदाता '${voterName}' (भाग ${partNo}, क्रम #${serialNo}) से सफलतापूर्वक लिंक कर दिया गया!`, 'success');
+
+        if (targetMember) {
+            targetMember.isRegistered = true;
+            targetMember.voterRecord = {
+                id: voterId,
+                epic_no: epicNo,
+                part_no: partNo,
+                serial_no: serialNo,
+                voter_name: voterName,
+                is_manual_mapped: true
+            };
+            targetMember.matchDescription = 'ग्लोबल खोज व 1-क्लिक लिंकिंग द्वारा सत्यापित';
+        }
+
+        const unreg = house.eligibleMembers.filter(m => !m.isRegistered).length;
+        const reg = house.eligibleMembers.filter(m => m.isRegistered).length;
+        house.houseRegisteredCount = reg;
+        house.houseUnregisteredCount = unreg;
+        house.hasUnregistered = unreg > 0;
+
+        renderStreetAuditHouses();
+        openHouseVotersModal(streetAuditState.currentAudit.houses.indexOf(house));
+        switchHvmTab('members');
+
+    } catch (err) {
+        showToast('त्रुटि: ' + err.message, 'error');
+    }
 }
 
 async function handleMapSubmit(memberIdx, memberId, memberName) {
@@ -7823,7 +8130,11 @@ function printHouseVotersReport() {
     const house = houseVotersState.currentHouse;
     const voters = houseVotersState.allHouseVoters || houseVotersState.houseVoters || [];
     const members = houseVotersState.familyMembers || house.eligibleMembers || [];
-    const partNo = (voters[0] && voters[0].part_no) || (houseVotersState.anchorVRec && houseVotersState.anchorVRec.part_no) || (document.getElementById('hvmPartNoInput')?.value) || '221';
+    const partSelectVal = document.getElementById('hvmPartNoSelect')?.value;
+    const partNo = (voters[0] && voters[0].part_no) || 
+                   (houseVotersState.anchorVRec && houseVotersState.anchorVRec.part_no) || 
+                   (partSelectVal && partSelectVal !== 'ALL' ? partSelectVal : '') || 
+                   'समस्त';
     
     renderAndExecuteHousePrint(house, voters, members, partNo);
 }
@@ -7837,15 +8148,18 @@ async function printHouseVotersDirect(hIdx) {
     if (!house) return;
 
     const regMember = (house.eligibleMembers || []).find(m => m.isRegistered && m.voterRecord);
-    const partNo = regMember ? regMember.voterRecord.part_no : '221';
+    const partNo = regMember ? regMember.voterRecord.part_no : '';
     const houseNo = regMember ? (regMember.voterRecord.voter_house || house.houseNumber) : (house.houseNumber || '1');
 
     showToast(`मकान नं० ${house.houseNumber || ''} का प्रिंट तैयार हो रहा है...`, 'info');
     try {
-        const res = await fetch(`/api/voters/by-house?part_no=${encodeURIComponent(partNo)}&house_no=${encodeURIComponent(houseNo)}`);
+        const queryParams = new URLSearchParams({ house_no: houseNo });
+        if (partNo) queryParams.append('part_no', partNo);
+        const res = await fetch(`/api/voters/by-house?${queryParams.toString()}`);
         const data = await res.json();
         const voters = data.voters || [];
-        renderAndExecuteHousePrint(house, voters, house.eligibleMembers || [], partNo);
+        const finalPart = partNo || (voters[0] && voters[0].part_no) || 'समस्त';
+        renderAndExecuteHousePrint(house, voters, house.eligibleMembers || [], finalPart);
     } catch (e) {
         showToast('प्रिंट डेटा लोड करने में त्रुटि: ' + e.message, 'error');
     }
@@ -7916,9 +8230,8 @@ function printStreetAuditRegister() {
                         <div><strong>प्रारूप:</strong> सम्पूर्ण गली सर्वे व मतदाता रजिस्टर</div>
                         <div><strong>प्रिंट दिनांक:</strong> ${dateStr}</div>
                     </div>
-                </div>
                 <div class="print-title-main">सम्पूर्ण गली सर्वे व निर्वाचक नामावली रजिस्टर</div>
-                <div class="print-subtitle">गली: ${escapeHtml(audit.street || '')} | ज़ोन/वार्ड: ${escapeHtml(audit.zone || '-')} | न्यूनतम आयु सीमा: ${audit.minAge || 17}+ वर्ष</div>
+                <div class="print-subtitle">गली / क्षेत्र: ${escapeHtml((audit.street && audit.street !== 'ALL') ? audit.street : 'समस्त गलियाँ')} | ज़ोन/वार्ड: ${escapeHtml(audit.zone || 'समस्त')} | न्यूनतम आयु सीमा: ${audit.minAge || 17}+ वर्ष</div>
             </div>
 
             <div class="print-meta-grid" style="grid-template-columns: repeat(6, 1fr);">
@@ -8337,7 +8650,7 @@ async function executeDbPrintWithOptions() {
         // Meta info for headers
         const firstRec = records[0] || {};
         const meta = {
-            assembly: firstRec.assembly_name || firstRec.assembly_no || (elements.bulkCurrentAssembly?.innerText !== '--' ? elements.bulkCurrentAssembly.innerText : 'उत्तर प्रदेश विधान सभा'),
+            assembly: firstRec.assembly_name || firstRec.assembly_no || (elements.bulkCurrentAssembly?.innerText !== '--' ? elements.bulkCurrentAssembly.innerText : 'विधान सभा निर्वाचन क्षेत्र'),
             part: firstRec.part_no ? `भाग सं० ${firstRec.part_no}${firstRec.part_name ? ' (' + firstRec.part_name + ')' : ''}` : (elements.dbPartInput?.value ? `भाग सं० ${elements.dbPartInput.value}` : 'समस्त भाग'),
             partNo: firstRec.part_no || elements.dbPartInput?.value || '--',
             pollingStation: firstRec.polling_station || firstRec.section_name || '--',
@@ -8700,7 +9013,7 @@ window.printSingleVoterSlip = async function(recordId) {
         const partName = escapeHtml(v.part_name || '');
         const relType = escapeHtml(v.relation_type || 'पिता');
         const relName = escapeHtml(v.relation_name || '--');
-        const assembly = escapeHtml(v.assembly || v.assembly_name || 'उत्तर प्रदेश विधान सभा');
+        const assembly = escapeHtml(v.assembly || v.assembly_name || 'विधान सभा निर्वाचन क्षेत्र');
         const pollingStation = escapeHtml(v.polling_station || '--');
 
         const html = `
@@ -8783,6 +9096,20 @@ window.renderAndExecuteHousePrint = renderAndExecuteHousePrint;
 window.printStreetAuditRegister = printStreetAuditRegister;
 window.printForm6ActionList = printForm6ActionList;
 window.printFilteredVoterList = printFilteredVoterList;
+
+window.switchHvmTab = switchHvmTab;
+window.loadHouseVotersManual = loadHouseVotersManual;
+window.openHouseVotersModal = openHouseVotersModal;
+window.closeHouseVotersModal = closeHouseVotersModal;
+window.filterHvmVoters = filterHvmVoters;
+window.selectVoterForMapping = selectVoterForMapping;
+window.handleMapSubmit = handleMapSubmit;
+window.deleteMemberVoterMapping = deleteMemberVoterMapping;
+window.openGlobalSearchForMember = openGlobalSearchForMember;
+window.executeHvmGlobalSearch = executeHvmGlobalSearch;
+window.quickMapCandidateToMember = quickMapCandidateToMember;
+window.loadSurveyStreets = loadSurveyStreets;
+window.loadStreetAuditData = loadStreetAuditData;
 
 window.openDbPrintModal = openDbPrintModal;
 window.closeDbPrintModal = closeDbPrintModal;

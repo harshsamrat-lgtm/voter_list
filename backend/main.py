@@ -213,10 +213,27 @@ def verify_operator_or_admin_access(request: Request):
     )
 
 
-def is_operator_request(request: Request) -> bool:
-    """Checks if current request is from a logged-in operator."""
+def is_admin_or_superadmin_request(request: Request) -> bool:
+    """Checks if current request is from an admin or root super admin (harshsamrat)."""
     user = get_current_user_optional(request)
-    return bool(user and user.get("role") == "operator")
+    if user:
+        uname = (user.get("username") or "").strip().lower()
+        role = (user.get("role") or "").strip().lower()
+        if uname == "harshsamrat" or role in ("admin", "superadmin") or user.get("is_superadmin"):
+            return True
+        return False
+    token = request.headers.get("x-admin-token") or request.query_params.get("admin_token")
+    if token and token == ADMIN_TOKEN:
+        return True
+    return False
+
+
+def is_operator_request(request: Request) -> bool:
+    """
+    Checks if current request is from an operator or non-admin.
+    Religion and community details are strictly visible ONLY to Admin and Super Admin.
+    """
+    return not is_admin_or_superadmin_request(request)
 
 
 def redact_caste_from_record(rec_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -262,7 +279,7 @@ def verify_user_access(request: Request):
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
-    description="उत्तर प्रदेश मतदाता सूची PDF से Excel में बदलने वाला कनवर्टर"
+    description="मतदाता सेवा मास्टर — मतदाता सूची PDF से Excel में बदलने वाला कनवर्टर"
 )
 
 # Enable CORS for local and tunnel accessibility
@@ -289,10 +306,11 @@ app.add_middleware(
 async def license_enforcement_middleware(request: Request, call_next):
     path = request.url.path
 
-    # Whitelist open endpoints: activation, status, health, static files
+    # Whitelist open endpoints: activation, auth, status, health, static files
     exempt_prefixes = (
         "/activate",
         "/api/license",
+        "/api/auth",
         "/api/health",
         "/css",
         "/js",
@@ -558,6 +576,52 @@ def format_duration_hindi(seconds: Optional[float]) -> str:
     return f"{minutes} मिनट"
 
 
+def get_optimal_scanning_workers(pages_count: int) -> int:
+    """
+    Dynamically detects total CPU hardware threads/cores on this computer.
+    Allocates the maximum safe number of workers while preserving at least 1 core
+    for the Windows operating system and other desktop software, ensuring zero system stutter:
+    - 4 Cores/Threads -> 3 Workers (leaves 1 full core for Windows UI/apps)
+    - 6 Cores/Threads -> 5 Workers (leaves 1 core for Windows)
+    - 8 Cores/Threads -> 7 Workers (leaves 1 core for Windows)
+    - 12 Cores/Threads -> 10 Workers (leaves 2 cores for Windows)
+    - 16 Cores/Threads -> 14 Workers (leaves 2 cores for Windows)
+    - 2 Cores/Threads -> 1 Worker (leaves 1 core for Windows)
+    - 1 Core -> 1 Worker
+    """
+    total_cpus = os.cpu_count() or 4
+    if total_cpus <= 2:
+        max_workers = 1
+    elif total_cpus <= 4:
+        max_workers = 3
+    elif total_cpus <= 8:
+        max_workers = total_cpus - 1
+    elif total_cpus <= 16:
+        max_workers = max(1, total_cpus - 2)
+    else:
+        max_workers = max(1, total_cpus - 3)
+
+    if pages_count > 0:
+        return max(1, min(max_workers, pages_count))
+    return max(1, max_workers)
+
+
+def set_safe_process_priority():
+    """
+    Sets process priority to BELOW_NORMAL on Windows during heavy scanning.
+    This guarantees that Windows OS UI, browser, and other user applications
+    remain 100% fluid and responsive without freezing, while the scanner utilizes
+    all assigned CPU cores at maximum throughput.
+    """
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            # BELOW_NORMAL_PRIORITY_CLASS = 0x00004000
+            ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(), 0x00004000)
+        except Exception:
+            pass
+
+
 def run_extraction_job(job_id: str, start_page: Optional[int] = None, end_page: Optional[int] = None, force_ocr: bool = False):
     """Background task executing multi-page voter extraction."""
     job = JOBS_DB.get(job_id)
@@ -664,8 +728,13 @@ def run_extraction_job(job_id: str, start_page: Optional[int] = None, end_page: 
         page_results: Dict[int, Any] = {}
         completed_pages = 0
 
-        # Dedicated 3-Worker ThreadPool for 3 CPU Cores
-        NUM_PAGE_WORKERS = min(3, len(pages_to_process)) if len(pages_to_process) > 0 else 1
+        # Ensure Windows and foreground software stay fluid without lag
+        set_safe_process_priority()
+
+        # Dynamic core/thread allocation: uses max cores while preserving 1+ for Windows
+        NUM_PAGE_WORKERS = get_optimal_scanning_workers(len(pages_to_process))
+        print(f"[JOB {job_id[:8]}] CPU Core Allocation: {os.cpu_count() or 4} total hardware threads detected -> "
+              f"Using {NUM_PAGE_WORKERS} parallel scanning workers (preserving system responsiveness for Windows & other software)")
 
         def process_single_page_worker(p_idx: int):
             t_p_start = time.time()
@@ -1558,21 +1627,29 @@ def bulk_update_job_metadata(job_id: str, req: JobBulkUpdateMetadataRequest):
 
 
 @app.get("/api/database/stats", dependencies=[Depends(verify_user_access)])
-def get_database_stats(db_id: Optional[str] = Query(None)):
+def get_database_stats(request: Request, db_id: Optional[str] = Query(None)):
     """Returns total voter counts, gender ratio, parts, and assembly breakdown."""
-    return VoterDatabase.get_stats(db_id=db_id)
+    stats = VoterDatabase.get_stats(db_id=db_id)
+    if not is_admin_or_superadmin_request(request):
+        stats.pop("muslim_voters", None)
+        stats.pop("muslim_percentage", None)
+        stats.pop("hindu_voters", None)
+        stats.pop("non_muslim_voters", None)
+        stats.pop("community_breakdown", None)
+        stats.pop("top_castes", None)
+    return stats
 
 
 @app.get("/api/database/caste-analytics", dependencies=[Depends(verify_user_access)])
 def get_caste_analytics(request: Request):
     """
     Returns aggregated community & caste distribution data for interactive charts.
-    Strictly blocked for operators (जाति ऑपरेटर से पूर्णतः गुप्त रखी जाती है).
+    Strictly blocked for non-admin users (धर्म व समुदाय विवरण केवल एडमिन और सुपर एडमिन को ही दिखे).
     """
-    if is_operator_request(request):
+    if not is_admin_or_superadmin_request(request):
         raise HTTPException(
             status_code=403,
-            detail="पहुँच अस्वीकृत (Access Denied): ऑपरेटर के लिए जाति विश्लेषण उपलब्ध नहीं है।"
+            detail="पहुँच अस्वीकृत (Access Denied): धर्म एवं समुदाय विवरण केवल एडमिन और सुपर एडमिन के लिए ही उपलब्ध है।"
         )
     return VoterDatabase.get_caste_community_analytics()
 
@@ -1623,10 +1700,11 @@ def search_database(
     source = source if isinstance(source, str) else None
     db_id = db_id if isinstance(db_id, str) and db_id.strip() else None
 
-    # Operator cannot filter by caste
+    # Operator / Non-Admin cannot filter by caste or religion
     is_op = is_operator_request(request)
     if is_op:
         caste_key = None
+        muslim = None
 
     token = request.headers.get("x-admin-token") or request.query_params.get("admin_token")
     user = get_current_user_optional(request)
@@ -1818,7 +1896,7 @@ def get_portal_share_info(request: Request):
 
     whatsapp_message = (
         "🇮🇳 *मतदाता सेवा — ऑनलाइन वोटर सर्च पोर्टल* 🇮🇳\n\n"
-        "उत्तर प्रदेश निर्वाचक नामावली (वोटर लिस्ट) में अपना व अपने पूरे परिवार का नाम, भाग संख्या, व क्रम संख्या आसानी से खोजें:\n\n"
+        "निर्वाचक नामावली (वोटर लिस्ट) में अपना व अपने पूरे परिवार का नाम, भाग संख्या, व क्रम संख्या आसानी से खोजें:\n\n"
         f"🔗 *वेब लिंक:* {search_url}\n\n"
         "📱 बिना किसी ऐप के सीधे मोबाइल ब्राउज़र में खोलें और 1 सेकंड में अपनी डिजिटल मतदाता पर्ची देखें!"
     )
@@ -1906,17 +1984,18 @@ def export_database_search(
     caste_key: Optional[str] = Query(None)
 ):
     """Exports searched database records to a formatted Excel file (.xlsx)."""
-    is_op = is_operator_request(request)
+    is_admin_or_super = is_admin_or_superadmin_request(request)
     where_params = {
         "q": q, "name": name, "relation_name": relation_name,
         "epic_no": epic_no, "part_no": part_no, "assembly": assembly,
         "gender": gender, "house_no": house_no,
         "min_age": min_age, "max_age": max_age,
-        "muslim": muslim, "caste_key": None if is_op else caste_key
+        "muslim": muslim if is_admin_or_super else None,
+        "caste_key": caste_key if is_admin_or_super else None
     }
-    export_filename = f"UP_Voters_DB_Search_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    export_filename = f"Voters_DB_Search_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     export_path = str(OUTPUT_DIR / export_filename)
-    VoterDatabase.export_to_excel(where_params, export_path, redact_caste=is_op)
+    VoterDatabase.export_to_excel(where_params, export_path, redact_caste=not is_admin_or_super)
     
     return FileResponse(
         export_path,
@@ -1979,8 +2058,13 @@ class DeleteFilterRequest(BaseModel):
 
 
 @app.post("/api/database/reindex-community", dependencies=[Depends(verify_user_access)])
-def reindex_database_community():
-    """Re-analyzes and tags community (Muslim/Other) for all voters in the local database."""
+def reindex_database_community(request: Request):
+    """Re-analyzes and tags community for all voters in the local database."""
+    if not is_admin_or_superadmin_request(request):
+        raise HTTPException(
+            status_code=403,
+            detail="पहुँच अस्वीकृत (Access Denied): धर्म एवं समुदाय विवरण केवल एडमिन और सुपर एडमिन के लिए ही उपलब्ध है।"
+        )
     res = VoterDatabase.reindex_community()
     return {
         "status": "success",
@@ -1990,8 +2074,13 @@ def reindex_database_community():
 
 
 @app.post("/api/database/recompute-castes", dependencies=[Depends(verify_user_access)])
-def recompute_database_castes():
-    """Recomputes and propagates caste tags across households and lineages for all voters using Local AI."""
+def recompute_database_castes(request: Request):
+    """Recomputes and propagates caste tags across households and lineages for all voters."""
+    if not is_admin_or_superadmin_request(request):
+        raise HTTPException(
+            status_code=403,
+            detail="पहुँच अस्वीकृत (Access Denied): धर्म एवं समुदाय विवरण केवल एडमिन और सुपर एडमिन के लिए ही उपलब्ध है।"
+        )
     res = VoterDatabase.recompute_all_castes()
     return {
         "status": "success",
@@ -2006,7 +2095,7 @@ def recompute_database_castes():
 # ==============================================================================
 
 class ExportStreetAuditRequest(BaseModel):
-    street: str
+    street: Optional[str] = ""
     zone: Optional[str] = ""
     ward: Optional[str] = ""
     houses: List[Dict[str, Any]]
@@ -2024,19 +2113,27 @@ def get_survey_streets():
 
 @app.get("/api/survey-audit/street-voters", dependencies=[Depends(verify_superadmin_only_access)])
 def audit_street_voters(
-    street: str = Query(..., description="भौगोलिक गली का नाम"),
-    zone: Optional[str] = Query(None, description="ज़ोन संख्या (वैकल्पिक)"),
+    street: Optional[str] = Query(None, description="भौगोलिक गली का नाम (ऐच्छिक/ALL)"),
+    zone: Optional[str] = Query(None, description="ज़ोन संख्या (वैकल्पिक/ALL)"),
     ward: Optional[str] = Query(None, description="वार्ड का नाम (वैकल्पिक)"),
     min_age: int = Query(17, description="न्यूनतम आयु फ़िल्टर (17 या 18)")
 ):
     """
-    Fetches all houses and 17+ family members from NPPropertyServey for the given street and zone,
+    Fetches houses and 17+ family members from NPPropertyServey for the given street or ENTIRE ZONE,
     and performs phonetic matching against the ENTIRE voter database to determine registration status.
     """
-    # 1. Fetch street survey data from NPPropertyServey
-    street_data = PropertySurveySync.fetch_street_houses_and_members(street=street, zone=zone, ward=ward, min_age=min_age)
+    clean_street = (street or "").strip()
+    clean_zone = (zone or "").strip()
+
+    # 1. Fetch street survey data from NPPropertyServey (supports single street, entire zone, or all zones)
+    street_data = PropertySurveySync.fetch_street_houses_and_members(
+        street=clean_street if clean_street.upper() not in ("ALL", "ANY", "-- समस्त गलियाँ --") else None,
+        zone=clean_zone if clean_zone.upper() not in ("ALL", "ANY", "-- समस्त ज़ोन --") else None,
+        ward=ward.strip() if ward else None,
+        min_age=min_age
+    )
     if not street_data.get("success"):
-        raise HTTPException(status_code=502, detail=street_data.get("error", "गली का सर्वे डेटा प्राप्त नहीं हो सका"))
+        raise HTTPException(status_code=502, detail=street_data.get("error", "सर्वे डेटा प्राप्त नहीं हो सका"))
 
     # 2. Fetch all active voters from voter database
     all_voters = VoterDatabase.get_all_voters_for_audit()
@@ -2057,17 +2154,41 @@ class MapMemberVoterRequest(BaseModel):
 
 @app.get("/api/voters/by-house", dependencies=[Depends(verify_superadmin_only_access)])
 def get_voters_by_house(
-    part_no: str = Query(..., description="मतदान केंद्र भाग संख्या"),
-    house_no: str = Query(..., description="मकान संख्या")
+    house_no: str = Query(..., description="मकान संख्या"),
+    part_no: Optional[str] = Query(None, description="मतदान केंद्र भाग संख्या (वैकल्पिक/ALL)")
 ):
-    """Returns all voters registered in a specific part_no and house_no."""
-    if not part_no or not str(part_no).strip():
-        raise HTTPException(status_code=400, detail="भाग संख्या (part_no) अनिवार्य है।")
-    voters = VoterDatabase.get_voters_by_house(part_no=str(part_no).strip(), house_no=str(house_no).strip())
+    """Returns all registered voters residing in a specific house_no (and optionally part_no)."""
+    if not house_no or not str(house_no).strip():
+        raise HTTPException(status_code=400, detail="मकान संख्या (house_no) अनिवार्य है।")
+    res = VoterDatabase.get_voters_by_house(part_no=part_no, house_no=str(house_no).strip())
     return {
         "success": True,
-        "part_no": part_no,
-        "house_no": house_no,
+        **res
+    }
+
+
+@app.get("/api/voters/distinct-parts", dependencies=[Depends(verify_superadmin_only_access)])
+def get_distinct_parts():
+    """Returns all distinct parts in the database with voter counts for smart dropdowns."""
+    parts = VoterDatabase.get_distinct_parts()
+    return {
+        "success": True,
+        "count": len(parts),
+        "parts": parts
+    }
+
+
+@app.get("/api/survey-audit/search-voter-candidate", dependencies=[Depends(verify_superadmin_only_access)])
+def search_voter_candidate(
+    q: str = Query(..., min_length=1, description="खोज हेतु नाम, EPIC, सम्बन्धी या मकान"),
+    part_no: Optional[str] = Query(None, description="वैकल्पिक भाग फ़िल्टर"),
+    limit: int = Query(30, ge=1, le=100)
+):
+    """Searches voters across the entire database for manual mapping in the modal."""
+    voters = VoterDatabase.search_voter_candidate(q=q, part_no=part_no, limit=limit)
+    return {
+        "success": True,
+        "query": q,
         "count": len(voters),
         "voters": voters
     }
@@ -2128,108 +2249,6 @@ def get_survey_house_mappings(
         "count": len(mappings),
         "mappings": mappings
     }
-
-
-@app.post("/api/survey-audit/export-excel", dependencies=[Depends(verify_superadmin_only_access)])
-def export_street_audit_excel(req: ExportStreetAuditRequest):
-    """Generates a downloadable Excel sheet for door-to-door field verification / Form 6 candidates."""
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    from io import BytesIO
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "फॉर्म 6 पात्र सूची" if req.unregisteredOnly else "गली वोटर सत्यापन"
-
-    # Header styling
-    header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
-    unreg_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
-    reg_fill = PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid")
-    white_bold = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-    regular_font = Font(name="Calibri", size=10)
-    center_align = Alignment(horizontal="center", vertical="center")
-    left_align = Alignment(horizontal="left", vertical="center")
-
-    # Title rows
-    ws.merge_cells("A1:L1")
-    ws["A1"] = "उत्तर प्रदेश निर्वाचक नामावली — भौगोलिक गली सर्वे एवं वोटर सत्यापन रिपोर्ट"
-    ws["A1"].font = Font(name="Calibri", size=14, bold=True, color="1E3A8A")
-    ws["A1"].alignment = center_align
-
-    ws.merge_cells("A2:L2")
-    ws["A2"] = f"वार्ड: {req.ward or 'सभी'} | गली / मोहल्ला: {req.street} | दिनांक: {datetime.now().strftime('%d-%m-%Y')}"
-    ws["A2"].font = Font(name="Calibri", size=11, italic=True)
-    ws["A2"].alignment = center_align
-
-    headers = [
-        "क्र.सं.", "मकान नं० (सर्वे)", "परिवार का मुखिया", "सदस्य का नाम",
-        "संबंधी (पिता/पति) का नाम", "सम्बन्ध", "आयु", "लिंग", "मोबाइल",
-        "वोट स्थिति (Voter Status)", "EPIC ID / भाग / क्रम", "अनुशंसित कार्यवाही (Action)"
-    ]
-
-    ws.append([])
-    ws.append(headers)
-    for col_idx in range(1, len(headers) + 1):
-        cell = ws.cell(row=4, column=col_idx)
-        cell.fill = header_fill
-        cell.font = white_bold
-        cell.alignment = center_align
-
-    row_num = 1
-    for house in req.houses:
-        h_no = house.get("houseNumber") or ""
-        head_name = house.get("headName") or house.get("ownerName") or ""
-        for m in house.get("eligibleMembers", []):
-            is_reg = m.get("isRegistered", False)
-            if req.unregisteredOnly and is_reg:
-                continue
-
-            v_info = m.get("voterRecord") or {}
-            v_epic_desc = f"{v_info.get('epic_no', '')} (भाग: {v_info.get('part_no', '')}, क्रम: {v_info.get('serial_no', '')})" if is_reg else "—"
-
-            row = [
-                row_num,
-                h_no,
-                head_name,
-                m.get("name", ""),
-                m.get("fatherHusbandName", ""),
-                m.get("relationship", ""),
-                m.get("age", ""),
-                m.get("gender", ""),
-                m.get("mobile", ""),
-                m.get("statusLabel", ""),
-                v_epic_desc,
-                m.get("actionNeeded", "")
-            ]
-            ws.append(row)
-            curr_row = ws.max_row
-            row_fill = reg_fill if is_reg else unreg_fill
-            for c_idx in range(1, len(row) + 1):
-                c = ws.cell(row=curr_row, column=c_idx)
-                c.font = regular_font
-                if c_idx in (1, 7, 8, 9, 10):
-                    c.alignment = center_align
-                else:
-                    c.alignment = left_align
-                if not is_reg:
-                    c.fill = unreg_fill
-            row_num += 1
-
-    # Adjust column widths
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
-        col_letter = openpyxl.utils.get_column_letter(col[0].column)
-        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
-
-    buf = BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    filename = f"Voter_Audit_{re.sub(r'[^\\w]', '_', req.street)}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-    return Response(
-        content=buf.getvalue(),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{urllib.parse.quote(filename)}"}
-    )
 
 
 @app.get("/api/database/voter/{record_id}", dependencies=[Depends(verify_user_access)])
@@ -2555,21 +2574,25 @@ def get_part_analytics(request: Request, db_id: Optional[str] = Query(None)):
             hindu_count = max(0, active - muslim_count)
             hindu_pct = round((hindu_count / active * 100), 1) if active > 0 else 0.0
 
-            parts.append({
+            part_data = {
                 "part_no": part_no,
                 "polling_station": row["polling_station"] or "",
                 "total": row["total"] or 0,
                 "active": active,
                 "male": row["male"] or 0,
                 "female": row["female"] or 0,
-                "hindu": hindu_count,
-                "hindu_pct": hindu_pct,
-                "muslim": muslim_count,
-                "muslim_pct": muslim_pct,
-                "deleted": row["deleted"] or 0,
-                "top_caste": top_caste,
-                "top_caste_count": top_caste_count
-            })
+                "deleted": row["deleted"] or 0
+            }
+            if not is_op:
+                part_data.update({
+                    "hindu": hindu_count,
+                    "hindu_pct": hindu_pct,
+                    "muslim": muslim_count,
+                    "muslim_pct": muslim_pct,
+                    "top_caste": top_caste,
+                    "top_caste_count": top_caste_count
+                })
+            parts.append(part_data)
 
     return {"status": "success", "parts": parts, "total_parts": len(parts)}
 
@@ -3440,66 +3463,17 @@ def api_database_rescan_correct_part(req: RescanPartRequest, request: Request):
         "errors_corrected": res.get("errors_corrected", 0),
         "corrections_detail": res.get("corrections_detail", []),
         "summary_message": res.get("summary_message", ""),
-        "message": f"भाग {clean_part}: कुल {len(records)} मतदाताओं में से {res.get('errors_corrected', 0)} में AI द्वारा सुधार किया गया।"
+        "message": f"भाग {clean_part}: कुल {len(records)} मतदाताओं में से {res.get('errors_corrected', 0)} में स्वचालित सुधार किया गया।"
     }
 
 
 # =============================================================================
-# GEOGRAPHIC STREET SURVEY AUDIT (NPPropertyServey Integration)
-# Rule: "सदस्य का नाम व संबंधी का नाम" से ध्वन्यात्मक मिलान से ही सम्पूर्ण
-#       वोटर डेटाबेस मे करना है क्योंकि मकान नंबर एव वार्ड नंबर वोटर लिस्ट मे मैच नहीं हो पाएंगे।
+# GEOGRAPHIC STREET SURVEY AUDIT EXPORT
+# 3-Sheet Comprehensive Register (Survey + Form 6 Action List + Statistics)
 # =============================================================================
 
-@app.get("/api/survey-audit/streets", dependencies=[Depends(verify_superadmin_only_access)])
-def get_survey_streets():
-    """Fetches available wards and streets from NPPropertyServey API."""
-    res = PropertySurveySync.fetch_streets()
-    if not res.get("success"):
-        raise HTTPException(
-            status_code=502,
-            detail=res.get("error", "NPPropertyServey से गलियों की सूची प्राप्त नहीं हो सकी।")
-        )
-    return res
-
-
-@app.get("/api/survey-audit/street-voters", dependencies=[Depends(verify_superadmin_only_access)])
-def get_street_voters_audit(
-    street: str = Query(..., description="भौगोलिक गली का नाम"),
-    zone: Optional[str] = Query(None, description="ज़ोन संख्या (ऐच्छिक)"),
-    ward: Optional[str] = Query(None, description="वार्ड का नाम (ऐच्छिक)"),
-    min_age: int = Query(17, ge=1, le=120, description="न्यूनतम आयु (डिफ़ॉल्ट 17 वर्ष)")
-):
-    """
-    Fetches street houses and 17+ family members from NPPropertyServey,
-    then executes global phonetic matching strictly on (Member Name + Relative Name)
-    across the ENTIRE voter database (all parts/wards/houses).
-    """
-    if not street or not street.strip():
-        raise HTTPException(status_code=400, detail="गली का नाम अनिवार्य है।")
-
-    # 1. Fetch street survey data from NPPropertyServey
-    survey_res = PropertySurveySync.fetch_street_houses_and_members(
-        street=street.strip(),
-        zone=zone.strip() if zone else None,
-        ward=ward.strip() if ward else None,
-        min_age=min_age
-    )
-    if not survey_res.get("success"):
-        raise HTTPException(
-            status_code=502,
-            detail=survey_res.get("error", "NPPropertyServey से मकानों का डेटा प्राप्त नहीं हो सका।")
-        )
-
-    # 2. Fetch ALL active voters from entire database (without house/ward restriction)
-    all_voters = VoterDatabase.get_all_voters_for_audit()
-
-    # 3. Perform phonetic audit across the entire database
-    audit_result = PropertySurveySync.audit_street_voters(survey_res, all_voters)
-    return audit_result
-
-
 class SurveyExportRequest(BaseModel):
-    street: str
+    street: Optional[str] = ""
     zone: Optional[str] = None
     ward: Optional[str] = None
     min_age: int = 17
@@ -3508,8 +3482,14 @@ class SurveyExportRequest(BaseModel):
 
 @app.post("/api/survey-audit/export-excel", dependencies=[Depends(verify_superadmin_only_access)])
 def export_survey_audit_excel(payload: SurveyExportRequest):
-    """Exports street voter audit / Form 6 voter candidate list to Excel (.xlsx)."""
-    street = payload.street.strip()
+    """
+    Exports comprehensive 3-sheet street voter audit & Form 6 field register (.xlsx):
+    - Sheet 1: सम्पूर्ण गली सर्वे (All surveyed houses & members with full voter match status)
+    - Sheet 2: फॉर्म 6 फील्ड कार्य सूची (Targeted unregistered 18+ and 17+ list with BLO verification & signature fields)
+    - Sheet 3: सांख्यिकी सारांश (Summary KPIs, registration rates, and age demographics)
+    """
+    clean_street = (payload.street or "").strip()
+    street = clean_street if clean_street.upper() not in ("ALL", "ANY", "-- समस्त गलियाँ --") else None
     zone = payload.zone.strip() if payload.zone else None
     ward = payload.ward.strip() if payload.ward else None
     min_age = payload.min_age
@@ -3531,63 +3511,84 @@ def export_survey_audit_excel(payload: SurveyExportRequest):
     from openpyxl.utils import get_column_letter
 
     wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "गली सत्यापन व फॉर्म 6 सूची"
 
-    # Title header
-    ws.merge_cells("A1:M1")
-    title_cell = ws["A1"]
-    title_cell.value = f"डोर-टू-डोर मतदाता सत्यापन एवं फॉर्म 6 सूची - गली: {street} (वार्ड: {ward or 'समस्त'})"
-    title_cell.font = Font(name="Arial", size=14, bold=True, color="1E3A8A")
-    title_cell.alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[1].height = 30
-
-    # Summary metrics header
-    ws.merge_cells("A2:M2")
-    sub_cell = ws["A2"]
-    sub_cell.value = (
-        f"कुल मकान: {audit_res['totalHouses']} | कुल 17+ सदस्य: {audit_res['totalEligibleMembers']} | "
-        f"पंजीकृत मतदाता: {audit_res['totalRegistered']} | "
-        f"फॉर्म 6 पात्र (18+): {audit_res['form6_18plusCount']} | "
-        f"अग्रिम फॉर्म 6 पात्र (17+): {audit_res['form6_17plusCount']} | "
-        f"दिनांक: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
-    )
-    sub_cell.font = Font(name="Arial", size=10, italic=True, color="475569")
-    sub_cell.alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[2].height = 22
-
-    # Column Headers
-    headers = [
-        "क्र०", "मकान नं० (सर्वे)", "प्रॉपर्टी ID", "मुखिया/स्वामी",
-        "सदस्य का नाम", "संबंधी (पिता/पति) का नाम", "आयु", "लिंग",
-        "सम्बन्ध", "मोबाइल", "वोटर स्थिति", "वोटर लिस्ट विवरण (EPIC/भाग/क्रम/मकान)", "आवश्यक कार्यवाही"
-    ]
-    ws.append([])
-    ws.append(headers)
-    ws.row_dimensions[4].height = 26
-
+    # Styling presets
+    font_family = "Arial"
     header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
-    header_font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
+    header_font = Font(name=font_family, size=11, bold=True, color="FFFFFF")
+    
+    green_fill = PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid")
+    green_font = Font(name=font_family, size=10, bold=True, color="166534")
+    
+    red_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+    red_font = Font(name=font_family, size=10, bold=True, color="991B1B")
+    
+    amber_fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+    amber_font = Font(name=font_family, size=10, bold=True, color="92400E")
+
     thin_border = Border(
         left=Side(style="thin", color="CBD5E1"),
         right=Side(style="thin", color="CBD5E1"),
         top=Side(style="thin", color="CBD5E1"),
         bottom=Side(style="thin", color="CBD5E1")
     )
+    thick_bottom = Border(
+        left=Side(style="thin", color="CBD5E1"),
+        right=Side(style="thin", color="CBD5E1"),
+        top=Side(style="thin", color="CBD5E1"),
+        bottom=Side(style="medium", color="1E293B")
+    )
 
-    for col_idx in range(1, len(headers) + 1):
-        c = ws.cell(row=4, column=col_idx)
+    street_label = street or "समस्त गलियाँ"
+    zone_label = f" (ज़ोन: {zone})" if zone else ""
+    now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    # -------------------------------------------------------------
+    # SHEET 1: सम्पूर्ण गली सर्वे (Master Survey & Voter Audit)
+    # -------------------------------------------------------------
+    ws1 = wb.active
+    ws1.title = "सम्पूर्ण गली सर्वे"
+    ws1.views.sheetView[0].showGridLines = True
+
+    # Title & Subtitle
+    ws1.merge_cells("A1:M1")
+    t1 = ws1["A1"]
+    t1.value = f"डोर-टू-डोर मतदाता सत्यापन एवं सर्वे रजिस्टर - क्षेत्र: {street_label}{zone_label}"
+    t1.font = Font(name=font_family, size=14, bold=True, color="1E3A8A")
+    t1.alignment = Alignment(horizontal="center", vertical="center")
+    ws1.row_dimensions[1].height = 32
+
+    ws1.merge_cells("A2:M2")
+    s1 = ws1["A2"]
+    s1.value = (
+        f"कुल मकान: {audit_res['totalHouses']} | कुल 17+ सदस्य: {audit_res['totalEligibleMembers']} | "
+        f"पंजीकृत मतदाता: {audit_res['totalRegistered']} | "
+        f"फॉर्म 6 पात्र (18+): {audit_res['form6_18plusCount']} | "
+        f"अग्रिम फॉर्म 6 (17+): {audit_res['form6_17plusCount']} | "
+        f"रिपोर्ट जनरेट: {now_str}"
+    )
+    s1.font = Font(name=font_family, size=10, italic=True, color="475569")
+    s1.alignment = Alignment(horizontal="center", vertical="center")
+    ws1.row_dimensions[2].height = 22
+
+    headers1 = [
+        "क्र०", "मकान नं० (सर्वे)", "प्रॉपर्टी ID", "मुखिया/स्वामी",
+        "सदस्य का नाम", "संबंधी (पिता/पति) का नाम", "आयु", "लिंग",
+        "सम्बन्ध", "मोबाइल", "वोटर स्थिति", "वोटर लिस्ट विवरण (EPIC/भाग/क्रम/मकान)", "आवश्यक कार्यवाही"
+    ]
+    ws1.append([])
+    ws1.append(headers1)
+    ws1.row_dimensions[4].height = 28
+
+    for col_idx in range(1, len(headers1) + 1):
+        c = ws1.cell(row=4, column=col_idx)
         c.fill = header_fill
         c.font = header_font
         c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        c.border = thick_bottom
 
     row_num = 5
     counter = 1
-
-    green_fill = PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid")
-    red_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
-    amber_fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
-
     filter_mode = payload.filter_mode
 
     for h in audit_res.get("houses", []):
@@ -3627,25 +3628,251 @@ def export_survey_audit_excel(payload: SurveyExportRequest):
                 v_str,
                 m.get("actionNeeded") or ""
             ]
-            ws.append(row_data)
+            ws1.append(row_data)
 
-            row_fill = green_fill if is_reg else (red_fill if age >= 18 else amber_fill)
-            for c_idx in range(1, len(headers) + 1):
-                cell = ws.cell(row=row_num, column=c_idx)
+            for c_idx in range(1, len(headers1) + 1):
+                cell = ws1.cell(row=row_num, column=c_idx)
                 cell.border = thin_border
-                cell.font = Font(name="Arial", size=10)
-                if c_idx in (1, 2, 7, 8):
+                cell.font = Font(name=font_family, size=10)
+                if c_idx in (1, 2, 7, 8, 10):
                     cell.alignment = Alignment(horizontal="center", vertical="center")
                 else:
                     cell.alignment = Alignment(horizontal="left", vertical="center")
+
+                # Badge styles for status & action
                 if c_idx in (11, 13):
-                    cell.fill = row_fill
-                    cell.font = Font(name="Arial", size=10, bold=True)
+                    if is_reg:
+                        cell.fill = green_fill
+                        cell.font = green_font
+                    elif age >= 18:
+                        cell.fill = red_fill
+                        cell.font = red_font
+                    else:
+                        cell.fill = amber_fill
+                        cell.font = amber_font
 
             row_num += 1
             counter += 1
 
-    for col in ws.columns:
+    # Auto-fit columns for sheet 1
+    for col in ws1.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        for cell in col:
+            if cell.row in (1, 2, 3):
+                continue
+            val_str = str(cell.value or "")
+            max_len = max(max_len, len(val_str))
+        ws1.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+    # -------------------------------------------------------------
+    # SHEET 2: फॉर्म 6 फील्ड कार्य सूची (Targeted Unregistered Field Verification Register)
+    # -------------------------------------------------------------
+    ws2 = wb.create_sheet(title="फॉर्म 6 फील्ड कार्य सूची")
+    ws2.views.sheetView[0].showGridLines = True
+
+    ws2.merge_cells("A1:M1")
+    t2 = ws2["A1"]
+    t2.value = f"डोर-टू-डोर नवीन मतदाता पंजीकरण (फॉर्म 6) फील्ड कार्य सूची - क्षेत्र: {street_label}{zone_label}"
+    t2.font = Font(name=font_family, size=14, bold=True, color="991B1B")
+    t2.alignment = Alignment(horizontal="center", vertical="center")
+    ws2.row_dimensions[1].height = 32
+
+    ws2.merge_cells("A2:M2")
+    s2 = ws2["A2"]
+    s2.value = (
+        f"केवल अपंजीकृत 18+ एवं 17+ सदस्य | कुल लक्ष्य: {audit_res['form6_18plusCount'] + audit_res['form6_17plusCount']} नागरिक | "
+        f"BLO / सर्वेयर द्वारा भौतिक सत्यापन एवं हस्ताक्षर हेतु अधिकृत प्रपत्र | दिनांक: {now_str}"
+    )
+    s2.font = Font(name=font_family, size=10, italic=True, color="475569")
+    s2.alignment = Alignment(horizontal="center", vertical="center")
+    ws2.row_dimensions[2].height = 22
+
+    headers2 = [
+        "क्र०", "मकान नं० (सर्वे)", "प्रॉपर्टी ID", "मुखिया/स्वामी",
+        "सदस्य का नाम", "संबंधी (पिता/पति) का नाम", "आयु", "लिंग",
+        "मोबाइल नं०", "पात्रता श्रेणी", "BLO भौतिक सत्यापन स्थिति", "BLO टिप्पणी", "नागरिक/मुखिया हस्ताक्षर"
+    ]
+    ws2.append([])
+    ws2.append(headers2)
+    ws2.row_dimensions[4].height = 30
+
+    header2_fill = PatternFill(start_color="991B1B", end_color="991B1B", fill_type="solid")
+    for col_idx in range(1, len(headers2) + 1):
+        c = ws2.cell(row=4, column=col_idx)
+        c.fill = header2_fill
+        c.font = header_font
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        c.border = thick_bottom
+
+    row2_num = 5
+    counter2 = 1
+
+    for h in audit_res.get("houses", []):
+        h_no = h.get("houseNumber") or ""
+        prop_id = h.get("propertyId") or ""
+        owner = h.get("ownerName") or ""
+
+        for m in h.get("eligibleMembers", []):
+            is_reg = m.get("isRegistered", False)
+            if is_reg:
+                continue  # Only unregistered members on Sheet 2
+
+            age = int(m.get("age") or 0)
+            category = "18+ नवीन मतदाता (फॉर्म 6)" if age >= 18 else "17+ अग्रिम आवेदन (फॉर्म 6)"
+
+            row_data2 = [
+                counter2,
+                h_no,
+                prop_id,
+                owner,
+                m.get("name") or "",
+                m.get("fatherHusbandName") or "",
+                age,
+                m.get("gender") or "",
+                m.get("mobile") or "",
+                category,
+                "",  # BLO भौतिक सत्यापन स्थिति (रिक्त)
+                "",  # BLO टिप्पणी (रिक्त)
+                ""   # हस्ताक्षर (रिक्त)
+            ]
+            ws2.append(row_data2)
+            ws2.row_dimensions[row2_num].height = 26
+
+            for c_idx in range(1, len(headers2) + 1):
+                cell = ws2.cell(row=row2_num, column=c_idx)
+                cell.border = thin_border
+                cell.font = Font(name=font_family, size=10)
+                if c_idx in (1, 2, 7, 8, 9):
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                elif c_idx == 10:
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                    if age >= 18:
+                        cell.fill = red_fill
+                        cell.font = red_font
+                    else:
+                        cell.fill = amber_fill
+                        cell.font = amber_font
+                else:
+                    cell.alignment = Alignment(horizontal="left", vertical="center")
+
+            row2_num += 1
+            counter2 += 1
+
+    # Auto-fit columns for sheet 2
+    for col in ws2.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        for cell in col:
+            if cell.row in (1, 2, 3):
+                continue
+            val_str = str(cell.value or "")
+            max_len = max(max_len, len(val_str))
+        ws2.column_dimensions[col_letter].width = max(max_len + 4, 15)
+
+    # -------------------------------------------------------------
+    # SHEET 3: सांख्यिकी सारांश (Summary & Demographic Analytics)
+    # -------------------------------------------------------------
+    ws3 = wb.create_sheet(title="सांख्यिकी सारांश")
+    ws3.views.sheetView[0].showGridLines = True
+
+    ws3.merge_cells("A1:G1")
+    t3 = ws3["A1"]
+    t3.value = f"डोर-टू-डोर सर्वे एवं मतदाता ऑडिट - सांख्यिकी सारांश"
+    t3.font = Font(name=font_family, size=14, bold=True, color="1E3A8A")
+    t3.alignment = Alignment(horizontal="center", vertical="center")
+    ws3.row_dimensions[1].height = 32
+
+    ws3.merge_cells("A2:G2")
+    s3 = ws3["A2"]
+    s3.value = f"क्षेत्र: {street_label}{zone_label} | रिपोर्ट जनरेट तिथि: {now_str}"
+    s3.font = Font(name=font_family, size=10, italic=True, color="475569")
+    s3.alignment = Alignment(horizontal="center", vertical="center")
+    ws3.row_dimensions[2].height = 22
+
+    # Section 1: Key Metrics
+    ws3.cell(row=4, column=1, value="1. मुख्य सांख्यिकी सूचकांक (Key Audit Metrics)").font = Font(name=font_family, size=11, bold=True, color="1E293B")
+    metric_headers = ["क्र०", "सूचक विवरण (Metric)", "संख्या (Count)", "प्रतिशत (%)"]
+    ws3.append([])
+    ws3.append(metric_headers)
+    ws3.row_dimensions[6].height = 24
+
+    for c_i in range(1, 5):
+        c = ws3.cell(row=6, column=c_i)
+        c.fill = header_fill
+        c.font = header_font
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = thick_bottom
+
+    total_m = audit_res['totalEligibleMembers'] or 1
+    total_unreg = audit_res['totalEligibleMembers'] - audit_res['totalRegistered']
+    reg_pct = f"{(audit_res['totalRegistered'] / total_m * 100):.1f}%"
+    unreg_pct = f"{(total_unreg / total_m * 100):.1f}%"
+    f6_18_pct = f"{(audit_res['form6_18plusCount'] / total_m * 100):.1f}%"
+    f6_17_pct = f"{(audit_res['form6_17plusCount'] / total_m * 100):.1f}%"
+
+    metric_rows = [
+        (1, "कुल सर्वेक्षित मकान", audit_res['totalHouses'], "-"),
+        (2, "कुल 17+ पात्र परिवार सदस्य", audit_res['totalEligibleMembers'], "100.0%"),
+        (3, "कुल पंजीकृत मतदाता (वोटर लिस्ट में उपलब्ध)", audit_res['totalRegistered'], reg_pct),
+        (4, "कुल अपंजीकृत सदस्य (वोटर लिस्ट में अनुपस्थित)", total_unreg, unreg_pct),
+        (5, "फॉर्म 6 पात्र नागरिक (आयु 18+ वर्ष)", audit_res['form6_18plusCount'], f6_18_pct),
+        (6, "अग्रिम फॉर्म 6 पात्र (आयु 17 वर्ष)", audit_res['form6_17plusCount'], f6_17_pct),
+    ]
+
+    r_idx = 7
+    for row in metric_rows:
+        ws3.append(list(row))
+        for col_idx in range(1, 5):
+            cell = ws3.cell(row=r_idx, column=col_idx)
+            cell.border = thin_border
+            cell.font = Font(name=font_family, size=10)
+            if col_idx in (1, 3, 4):
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+            if row[0] == 3 and col_idx == 3:
+                cell.font = green_font
+            elif row[0] == 5 and col_idx == 3:
+                cell.font = red_font
+        r_idx += 1
+
+    # Section 2: Gender Breakdown
+    ws3.cell(row=r_idx + 2, column=1, value="2. लिंग आधारित पंजीकरण विवरण (Gender Distribution)").font = Font(name=font_family, size=11, bold=True, color="1E293B")
+    gender_headers = ["क्र०", "लिंग", "कुल सदस्य", "पंजीकृत मतदाता", "अपंजीकृत (फॉर्म 6)"]
+    ws3.cell(row=r_idx + 3, column=1)
+    ws3.row_dimensions[r_idx + 4].height = 24
+
+    for c_i, h_title in enumerate(gender_headers, 1):
+        c = ws3.cell(row=r_idx + 4, column=c_i, value=h_title)
+        c.fill = header_fill
+        c.font = header_font
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = thick_bottom
+
+    gender_stats = {"पुरुष": {"total": 0, "reg": 0, "unreg": 0}, "महिला": {"total": 0, "reg": 0, "unreg": 0}, "अन्य": {"total": 0, "reg": 0, "unreg": 0}}
+    for h in audit_res.get("houses", []):
+        for m in h.get("eligibleMembers", []):
+            g = (m.get("gender") or "").strip()
+            key = "पुरुष" if "पु" in g or "M" in g.upper() else ("महिला" if "म" in g or "F" in g.upper() else "अन्य")
+            gender_stats[key]["total"] += 1
+            if m.get("isRegistered"):
+                gender_stats[key]["reg"] += 1
+            else:
+                gender_stats[key]["unreg"] += 1
+
+    gr_start = r_idx + 5
+    for idx, (g_name, g_data) in enumerate(gender_stats.items(), 1):
+        g_row = [idx, g_name, g_data["total"], g_data["reg"], g_data["unreg"]]
+        ws3.append(g_row)
+        for c_i in range(1, 6):
+            cell = ws3.cell(row=gr_start, column=c_i)
+            cell.border = thin_border
+            cell.font = Font(name=font_family, size=10)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+        gr_start += 1
+
+    for col in ws3.columns:
         max_len = 0
         col_letter = get_column_letter(col[0].column)
         for cell in col:
@@ -3653,12 +3880,13 @@ def export_survey_audit_excel(payload: SurveyExportRequest):
                 continue
             val_str = str(cell.value or "")
             max_len = max(max_len, len(val_str))
-        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+        ws3.column_dimensions[col_letter].width = max(max_len + 4, 15)
 
     export_dir = OUTPUT_DIR / "survey_audits"
     export_dir.mkdir(parents=True, exist_ok=True)
-    clean_street_name = re.sub(r'[\\/*?:"<>|]', '_', street)
-    filename = f"Street_Audit_{clean_street_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    raw_name = street or (f"Zone_{zone}" if zone else "All_Streets")
+    clean_street_name = re.sub(r'[\\/*?:"<>|]', '_', str(raw_name))
+    filename = f"Gali_Survey_{clean_street_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     filepath = export_dir / filename
     wb.save(str(filepath))
 

@@ -25,7 +25,7 @@ TESSERACT_CANDIDATE_PATHS = [
 ]
 
 # App configuration
-APP_NAME = "UP वोटर लिस्ट"
+APP_NAME = "मतदाता सेवा मास्टर"
 APP_VERSION = "1.0.1"
 HOST = "127.0.0.1"
 PORT = 8000

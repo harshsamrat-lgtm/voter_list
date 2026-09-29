@@ -281,6 +281,7 @@ class FirestoreDirectClient:
         self._token_expiry = 0
         self._cached_streets = None
         self._cached_streets_time = 0
+        self._street_data_cache: Dict[str, Tuple[float, Any]] = {}
 
     def get_token(self) -> str:
         now = int(time.time())
@@ -412,10 +413,14 @@ class FirestoreDirectClient:
         docs = self.run_query(q)
 
         zones_set = set()
+        zones_set = set()
         wards_set = set()
         streets_set = set()
         streets_by_zone = defaultdict(list)
         streets_by_ward = defaultdict(list)
+        house_count_by_zone = defaultdict(int)
+        house_count_by_street = defaultdict(int)
+        house_count_by_ward = defaultdict(int)
 
         for d in docs:
             if d.get("isActive") is False or d.get("isDeleted") is True:
@@ -424,14 +429,20 @@ class FirestoreDirectClient:
             ward = (d.get("ward") or "").strip()
             street = (d.get("street") or "").strip()
 
-            if zone: zones_set.add(zone)
-            if ward: wards_set.add(ward)
+            if zone:
+                zones_set.add(zone)
+                house_count_by_zone[zone] += 1
+            if ward:
+                wards_set.add(ward)
+                house_count_by_ward[ward] += 1
             if street:
                 streets_set.add(street)
                 if zone and street not in streets_by_zone[zone]:
                     streets_by_zone[zone].append(street)
                 if ward and street not in streets_by_ward[ward]:
                     streets_by_ward[ward].append(street)
+                st_key = f"{zone}_{street}" if zone else street
+                house_count_by_street[st_key] += 1
 
         def natural_sort_key(s: str):
             digits = "".join(c for c in s if c.isdigit())
@@ -455,7 +466,10 @@ class FirestoreDirectClient:
             "streetsByZone": dict(streets_by_zone),
             "allStreets": all_streets,
             "wards": wards,
-            "streetsByWard": dict(streets_by_ward)
+            "streetsByWard": dict(streets_by_ward),
+            "houseCountByZone": dict(house_count_by_zone),
+            "houseCountByStreet": dict(house_count_by_street),
+            "houseCountByWard": dict(house_count_by_ward)
         }
         self._cached_streets = res
         self._cached_streets_time = now
@@ -472,57 +486,87 @@ class FirestoreDirectClient:
 
     def fetch_street_data(
         self,
-        street: str,
+        street: Optional[str] = None,
         zone: Optional[str] = None,
         ward: Optional[str] = None,
         min_age: int = 17
     ) -> Dict[str, Any]:
-        filters = [
-            {
-                "fieldFilter": {
-                    "field": {"fieldPath": "street"},
-                    "op": "EQUAL",
-                    "value": {"stringValue": street.strip()}
-                }
-            }
-        ]
-        if zone:
-            filters.append({
-                "fieldFilter": {
-                    "field": {"fieldPath": "zone"},
-                    "op": "EQUAL",
-                    "value": {"stringValue": zone.strip()}
-                }
-            })
+        clean_street = (street or "").strip()
+        clean_zone = (zone or "").strip()
+        clean_ward = (ward or "").strip()
 
-        if len(filters) == 1:
-            where_clause = filters[0]
+        # In-memory cache key (valid for 5 minutes)
+        cache_key = f"{clean_zone}_{clean_ward}_{clean_street}"
+        now_ts = time.time()
+        cached_hit = getattr(self, "_street_data_cache", {}).get(cache_key)
+
+        if cached_hit and (now_ts - cached_hit[0] < 300):
+            raw_surveys, families_map = cached_hit[1]
         else:
-            where_clause = {
-                "compositeFilter": {
-                    "op": "AND",
-                    "filters": filters
+            filters = []
+            if clean_street and clean_street.upper() not in ("ALL", "ANY", "-- समस्त गलियाँ --"):
+                filters.append({
+                    "fieldFilter": {
+                        "field": {"fieldPath": "street"},
+                        "op": "EQUAL",
+                        "value": {"stringValue": clean_street}
+                    }
+                })
+
+            if clean_zone and clean_zone.upper() not in ("ALL", "ANY", "-- समस्त ज़ोन --"):
+                filters.append({
+                    "fieldFilter": {
+                        "field": {"fieldPath": "zone"},
+                        "op": "EQUAL",
+                        "value": {"stringValue": clean_zone}
+                    }
+                })
+
+            if clean_ward and clean_ward.upper() not in ("ALL", "ANY"):
+                filters.append({
+                    "fieldFilter": {
+                        "field": {"fieldPath": "ward"},
+                        "op": "EQUAL",
+                        "value": {"stringValue": clean_ward}
+                    }
+                })
+
+            if not filters:
+                q = {"from": [{"collectionId": "surveys"}]}
+            elif len(filters) == 1:
+                q = {
+                    "from": [{"collectionId": "surveys"}],
+                    "where": filters[0]
                 }
-            }
+            else:
+                q = {
+                    "from": [{"collectionId": "surveys"}],
+                    "where": {
+                        "compositeFilter": {
+                            "op": "AND",
+                            "filters": filters
+                        }
+                    }
+                }
 
-        q = {
-            "from": [{"collectionId": "surveys"}],
-            "where": where_clause
-        }
-        raw_surveys = self.run_query(q)
+            raw_surveys = self.run_query(q)
 
-        def house_sort_key(item: Dict[str, Any]):
-            h = str(item.get("houseNumber") or "").strip()
-            num = ""
-            for c in h:
-                if c.isdigit(): num += c
-                else: break
-            return (int(num) if num else 99999, h)
+            def house_sort_key(item: Dict[str, Any]):
+                h = str(item.get("houseNumber") or "").strip()
+                num = ""
+                for c in h:
+                    if c.isdigit(): num += c
+                    else: break
+                return (int(num) if num else 99999, h)
 
-        raw_surveys.sort(key=house_sort_key)
+            raw_surveys.sort(key=house_sort_key)
 
-        fids = list(set(s.get("familyId") for s in raw_surveys if s.get("familyId")))
-        families_map = self.batch_get_families(fids)
+            fids = list(set(s.get("familyId") for s in raw_surveys if s.get("familyId")))
+            families_map = self.batch_get_families(fids)
+
+            if not hasattr(self, "_street_data_cache"):
+                self._street_data_cache = {}
+            self._street_data_cache[cache_key] = (now_ts, (raw_surveys, families_map))
 
         total_eligible_count = 0
         houses = []
@@ -762,7 +806,7 @@ class PropertySurveySync:
     @classmethod
     def fetch_street_houses_and_members(
         cls,
-        street: str,
+        street: Optional[str] = None,
         zone: Optional[str] = None,
         ward: Optional[str] = None,
         min_age: int = 17,
@@ -772,17 +816,22 @@ class PropertySurveySync:
         Dual-Engine Street Data Fetch:
         1. Tries local port 9002 if running.
         2. Automatically falls back to Direct Firebase Firestore Cloud.
+        Supports full-street, full-zone, or full-city matching in one go.
         """
         base_url = api_url or NP_SURVEY_API_URL
         params = {
             "action": "get_street_data",
-            "street": street.strip(),
             "minAge": min_age
         }
-        if zone:
-            params["zone"] = zone.strip()
-        if ward:
-            params["ward"] = ward.strip()
+        clean_street = (street or "").strip()
+        if clean_street and clean_street.upper() not in ("ALL", "ANY", "-- समस्त गलियाँ --"):
+            params["street"] = clean_street
+        clean_zone = (zone or "").strip()
+        if clean_zone and clean_zone.upper() not in ("ALL", "ANY", "-- समस्त ज़ोन --"):
+            params["zone"] = clean_zone
+        clean_ward = (ward or "").strip()
+        if clean_ward and clean_ward.upper() not in ("ALL", "ANY"):
+            params["ward"] = clean_ward
 
         # Engine 1: Try Local Port 9002
         try:
@@ -881,30 +930,54 @@ class PropertySurveySync:
 
     @classmethod
     def prepare_voter_index(cls, all_voters: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Pre-normalizes all voters in memory with inverted token and phonetic index for sub-second audit matching."""
+        """Pre-normalizes all voters in memory with high-speed inverted token and phonetic indexes."""
         prepped = []
         by_token = defaultdict(list)
+        by_ns = defaultdict(list)
         by_phon_lead = defaultdict(list)
+        by_first_tok = defaultdict(list)
 
         for v in all_voters:
             v_name_clean = clean_and_normalize_name(v.get("name") or "")
             v_rel_clean = clean_and_normalize_name(v.get("relation_name") or "")
             norm_m = normalize_devanagari(v_name_clean)
             norm_r = normalize_devanagari(v_rel_clean)
+            norm_m_ns = re.sub(r'\s+', '', norm_m)
+            norm_r_ns = re.sub(r'\s+', '', norm_r)
             phon_m = get_phonetic_key(v_name_clean)
             phon_r = get_phonetic_key(v_rel_clean)
+            try:
+                v_age = int(v.get("age") or 0)
+            except (ValueError, TypeError):
+                v_age = 0
+
+            tokens_m = norm_m.split()
+            tokens_r = norm_r.split()
+
             item = {
                 "raw": v,
                 "norm_m": norm_m,
                 "norm_r": norm_r,
+                "norm_m_ns": norm_m_ns,
+                "norm_r_ns": norm_r_ns,
+                "tokens_m": tokens_m,
+                "tokens_r": tokens_r,
                 "phon_m": phon_m,
                 "phon_r": phon_r,
+                "age": v_age,
                 "gender": (v.get("gender") or "").strip()
             }
             prepped.append(item)
-            for tok in norm_m.split():
-                if len(tok) >= 2:
-                    by_token[tok].append(item)
+
+            if norm_m_ns:
+                by_ns[norm_m_ns].append(item)
+
+            if tokens_m:
+                by_first_tok[tokens_m[0]].append(item)
+                for tok in tokens_m:
+                    if len(tok) >= 2:
+                        by_token[tok].append(item)
+
             if phon_m:
                 for pt in phon_m.split():
                     lead = pt[:3]
@@ -914,6 +987,8 @@ class PropertySurveySync:
         return {
             "items": prepped,
             "by_token": by_token,
+            "by_ns": by_ns,
+            "by_first_tok": by_first_tok,
             "by_phon_lead": by_phon_lead
         }
 
@@ -923,11 +998,12 @@ class PropertySurveySync:
         member_name: str,
         relative_name: str,
         all_voters: Any,
-        gender_hint: Optional[str] = None
+        gender_hint: Optional[str] = None,
+        member_age: Optional[int] = None
     ) -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
         Matches a survey family member strictly on (Member Name + Relative Name) phonetically
-        across the ENTIRE voter database, with zero reliance on house or ward numbers.
+        across the ENTIRE voter database with age proximity and gender weighting.
         Seamlessly handles both Hindi Devanagari and English/Roman script entries.
         """
         m_str = (member_name or "").strip()
@@ -952,55 +1028,57 @@ class PropertySurveySync:
         else:
             clean_r = clean_and_normalize_name(r_str)
 
-        norm_m_primary = normalize_devanagari(clean_m)
-        norm_r_primary = normalize_devanagari(clean_r) if clean_r else ""
+        norm_m = normalize_devanagari(clean_m)
+        norm_r = normalize_devanagari(clean_r) if clean_r else ""
+        norm_m_ns = re.sub(r'\s+', '', norm_m)
+        norm_r_ns = re.sub(r'\s+', '', norm_r)
         phon_m = get_phonetic_key(clean_m)
         phon_r = get_phonetic_key(clean_r) if clean_r else ""
 
-        norm_m_list = [norm_m_primary]
-        norm_r_list = [norm_r_primary] if norm_r_primary else []
-
-        if has_latin_m:
-            raw_m_clean = clean_and_normalize_name(m_str)
-            if raw_m_clean != norm_m_primary:
-                norm_m_list.append(raw_m_clean)
-        if has_latin_r and r_str:
-            raw_r_clean = clean_and_normalize_name(r_str)
-            if raw_r_clean != norm_r_primary:
-                norm_r_list.append(raw_r_clean)
-
-        best_candidate = None
-        best_score = 0
+        tokens_m = norm_m.split()
+        first_tok = tokens_m[0] if tokens_m else ""
 
         is_prepped = isinstance(all_voters, dict) and "by_token" in all_voters
-
         if is_prepped:
-            candidate_set = set()
-            for tok in norm_m_primary.split():
+            candidates = {}
+            if norm_m_ns in all_voters["by_ns"]:
+                for it in all_voters["by_ns"][norm_m_ns]:
+                    candidates[id(it)] = it
+
+            if first_tok in all_voters["by_first_tok"]:
+                for it in all_voters["by_first_tok"][first_tok]:
+                    candidates[id(it)] = it
+
+            for tok in tokens_m:
                 if len(tok) >= 2 and tok in all_voters["by_token"]:
                     for it in all_voters["by_token"][tok]:
-                        candidate_set.add(id(it))
-            if not candidate_set and phon_m:
+                        candidates[id(it)] = it
+
+            if not candidates and phon_m:
                 for pt in phon_m.split():
                     lead = pt[:3]
                     if len(lead) >= 2 and lead in all_voters["by_phon_lead"]:
                         for it in all_voters["by_phon_lead"][lead]:
-                            candidate_set.add(id(it))
-            if not candidate_set:
-                candidate_list = all_voters["items"]
-            else:
-                candidate_list = [it for it in all_voters["items"] if id(it) in candidate_set]
+                            candidates[id(it)] = it
+
+            candidate_list = list(candidates.values()) if candidates else []
         else:
             candidate_list = all_voters
-            is_prepped = False
+
+        best_candidate = None
+        best_score = 0
+        m_age = int(member_age or 0)
 
         for item in candidate_list:
             if is_prepped:
                 v = item["raw"]
                 v_norm_m = item["norm_m"]
+                v_norm_m_ns = item["norm_m_ns"]
                 v_norm_r = item["norm_r"]
-                v_phon_m = item.get("phon_m") or ""
-                v_phon_r = item.get("phon_r") or ""
+                v_norm_r_ns = item["norm_r_ns"]
+                v_phon_m = item["phon_m"]
+                v_phon_r = item["phon_r"]
+                v_age = item["age"]
                 v_gender = item["gender"]
             else:
                 v = item
@@ -1008,12 +1086,23 @@ class PropertySurveySync:
                 v_rel_clean = clean_and_normalize_name(v.get("relation_name") or "")
                 v_norm_m = normalize_devanagari(v_name_clean)
                 v_norm_r = normalize_devanagari(v_rel_clean)
+                v_norm_m_ns = re.sub(r'\s+', '', v_norm_m)
+                v_norm_r_ns = re.sub(r'\s+', '', v_norm_r)
                 v_phon_m = get_phonetic_key(v_name_clean)
                 v_phon_r = get_phonetic_key(v_rel_clean)
+                try:
+                    v_age = int(v.get("age") or 0)
+                except (ValueError, TypeError):
+                    v_age = 0
                 v_gender = (v.get("gender") or "").strip()
 
-            m_matched = any(are_names_related(nm, v_norm_m) for nm in norm_m_list if nm)
-            if not m_matched and phon_m and v_phon_m:
+            # 1. Member name matching
+            m_matched = False
+            if norm_m_ns == v_norm_m_ns or norm_m == v_norm_m:
+                m_matched = True
+            elif are_names_related(norm_m, v_norm_m):
+                m_matched = True
+            elif phon_m and v_phon_m:
                 if phon_m == v_phon_m:
                     m_matched = True
                 else:
@@ -1028,42 +1117,70 @@ class PropertySurveySync:
             if not m_matched:
                 continue
 
-            if norm_r_list and v_norm_r:
-                r_matched = any(are_names_related(nr, v_norm_r) for nr in norm_r_list if nr)
-                if not r_matched and phon_r and v_phon_r:
+            # 2. Relative name matching
+            r_matched = False
+            r_score = 0
+            if norm_r_ns and v_norm_r_ns:
+                if norm_r_ns == v_norm_r_ns or norm_r == v_norm_r:
+                    r_matched = True
+                    r_score = 100
+                elif are_names_related(norm_r, v_norm_r):
+                    r_matched = True
+                    r_score = 95
+                elif phon_r and v_phon_r:
                     if phon_r == v_phon_r:
                         r_matched = True
+                        r_score = 90
                     else:
                         pr_words = phon_r.split()
                         vpr_words = v_phon_r.split()
                         if pr_words and vpr_words and pr_words[0] == vpr_words[0]:
                             if phon_r.startswith(v_phon_r) or v_phon_r.startswith(phon_r):
                                 r_matched = True
+                                r_score = 85
                             elif set(vpr_words).issubset(set(pr_words)) or set(pr_words).issubset(set(vpr_words)):
                                 r_matched = True
-                if not r_matched:
-                    continue
-                score = 100
-            elif not norm_r_list:
-                score = 60
-            else:
-                score = 50
+                                r_score = 85
+            elif not norm_r_ns:
+                # Relative name not captured in survey
+                r_matched = True
+                r_score = 60
 
+            if not r_matched:
+                continue
+
+            score = r_score
+
+            # 3. Gender check
             if gender_hint and v_gender:
                 if (gender_hint in ("महिला", "स्त्री", "Female", "female", "F") and v_gender in ("महिला", "स्त्री")) or \
                    (gender_hint in ("पुरुष", "नर", "Male", "male", "M") and v_gender in ("पुरुष", "नर")):
                     score += 10
                 elif (gender_hint in ("महिला", "स्त्री", "Female", "female", "F") and v_gender in ("पुरुष", "नर")) or \
                      (gender_hint in ("पुरुष", "नर", "Male", "male", "M") and v_gender in ("महिला", "स्त्री")):
-                    score -= 25
+                    score -= 30
+
+            # 4. Age proximity weighting
+            if m_age > 0 and v_age > 0:
+                diff = abs(m_age - v_age)
+                if diff <= 3:
+                    score += 15
+                elif diff <= 6:
+                    score += 8
+                elif diff <= 10:
+                    score += 0
+                elif diff <= 15:
+                    score -= 15
+                else:
+                    score -= 40
 
             if score > best_score:
                 best_score = score
                 best_candidate = v
-                if score >= 100:
+                if score >= 110:
                     break
 
-        if best_candidate and best_score >= 70:
+        if best_candidate and best_score >= 68:
             desc = "नाम व संबंधी का सटीक/ध्वन्यात्मक मिलान"
             return True, best_candidate, desc
 
@@ -1146,7 +1263,7 @@ class PropertySurveySync:
                     }
                 else:
                     is_reg, v_match, match_desc = cls.match_member_against_all_voters(
-                        m_name, m_rel, prepped_voters, gender_hint=m_gender
+                        m_name, m_rel, prepped_voters, gender_hint=m_gender, member_age=m_age
                     )
 
                     if is_reg and v_match:

@@ -374,7 +374,7 @@ class GitPublisher:
                         repo_name = DEFAULT_REPO.split("/")[-1]
                         create_payload = {
                             "name": repo_name,
-                            "description": "उत्तर प्रदेश मतदाता सेवा (UP Voter Seva) - Official Application & OTA Updates",
+                            "description": "मतदाता सेवा मास्टर (Voter Service Master) - Official Application & OTA Updates",
                             "private": False,
                             "has_issues": True
                         }

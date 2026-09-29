@@ -1,5 +1,5 @@
 """
-AI and Heuristic Field Parser for UP Electoral Rolls (उत्तर प्रदेश मतदाता सूची).
+Pattern and Heuristic Field Parser for Electoral Rolls (मतदाता सूची).
 Extracts: Serial No, Name, Relation Type, Relative Name, House No, Age, Gender, EPIC No.
 """
 

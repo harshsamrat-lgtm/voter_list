@@ -12,8 +12,13 @@ import threading
 import subprocess
 import re
 import urllib.request
-import webview
-
+import webbrowser
+try:
+    import webview
+    HAS_WEBVIEW = True
+except Exception:
+    webview = None
+    HAS_WEBVIEW = False
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG_FILE = os.path.join(BASE_DIR, "outputs", "app_browser.log")
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
@@ -175,11 +180,9 @@ def start_online_tunnel():
             except Exception:
                 pass
 
-            # 2. Build and save WhatsApp share link & message
-            import urllib.parse
             wa_message = (
                 "🇮🇳 *मतदाता सेवा — ऑनलाइन वोटर सर्च पोर्टल* 🇮🇳\n\n"
-                "उत्तर प्रदेश निर्वाचक नामावली (वोटर लिस्ट) में अपना व अपने पूरे परिवार का नाम, भाग संख्या, व क्रम संख्या आसानी से खोजें:\n\n"
+                "डिजिटल निर्वाचक नामावली (मतदाता सूची) में अपना व अपने पूरे परिवार का नाम, भाग संख्या, व क्रम संख्या आसानी से खोजें:\n\n"
                 f"🔗 *वेब लिंक:* {search_url}\n\n"
                 "📱 बिना किसी ऐप के सीधे मोबाइल ब्राउज़र में खोलें और 1 सेकंड में अपनी डिजिटल मतदाता पर्ची देखें!"
             )
@@ -280,41 +283,62 @@ def main():
 
     print(f"🖥️ समर्पित ऐप ब्राउज़र विंडो खुल रही है ({app_url})...")
 
-    # 4. Launch Custom Browser Window via pywebview
-    try:
-        window = webview.create_window(
-            title="मतदाता सेवा एवं AI कनवर्टर",
-            url=app_url,
-            width=1320,
-            height=860,
-            min_size=(960, 640),
-            resizable=True,
-            confirm_close=False,
-            text_select=True
-        )
-        window.events.closed += on_window_closed
+    # 4. Launch Custom Browser Window (pywebview -> Edge/Chrome App Mode -> Default Browser)
+    launched = False
+    if HAS_WEBVIEW and webview:
+        try:
+            window = webview.create_window(
+                title="मतदाता सेवा मास्टर",
+                url=app_url,
+                width=1320,
+                height=860,
+                min_size=(960, 640),
+                resizable=True,
+                confirm_close=False,
+                text_select=True
+            )
+            window.events.closed += on_window_closed
+            webview.start(debug=False)
+            launched = True
+        except Exception as e:
+            print(f"⚠️ PyWebView विंडो में समस्या: {e}")
 
-        # Start native window (WebView2 on Windows)
-        webview.start(debug=False)
-
-    except Exception as e:
-        print(f"⚠️ PyWebView विंडो में समस्या: {e}")
+    if not launched:
         print("🚀 स्टैंडअलोन ऐप मोड (Fallback App Mode) में खोला जा रहा है...")
-        # Fallback to Edge standalone App Mode
-        edge_paths = [
+        candidate_paths = [
             r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
             r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            "msedge.exe"
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe"),
+            "msedge.exe",
+            "chrome.exe"
         ]
-        edge_bin = "msedge.exe"
-        for p in edge_paths:
+        app_bin = None
+        for p in candidate_paths:
             if os.path.exists(p):
-                edge_bin = p
+                app_bin = p
                 break
         
-        fallback_cmd = [edge_bin, f"--app={app_url}", "--window-size=1320,860"]
-        p = subprocess.Popen(fallback_cmd)
-        p.wait()
+        if app_bin:
+            try:
+                fallback_cmd = [app_bin, f"--app={app_url}", "--window-size=1320,860"]
+                p = subprocess.Popen(fallback_cmd)
+                p.wait()
+                launched = True
+            except Exception as e:
+                print(f"⚠️ स्टैंडअलोन ब्राउज़र त्रुटि: {e}")
+
+        if not launched:
+            print(f"🌐 डिफ़ॉल्ट सिस्टम ब्राउज़र में खोला जा रहा है: {app_url}")
+            webbrowser.open(app_url)
+            # Keep parent process alive while server runs
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                pass
         on_window_closed()
 
 

@@ -446,7 +446,7 @@
                 <img src="/assets/logo.png" alt="UP Voter Logo" class="header-logo" onerror="this.src='/favicon.ico'">
                 <div class="header-title-group">
                     <h1>📊 जाति एवं जनसांख्यिकी विश्लेषण डैशबोर्ड</h1>
-                    <p>उत्तर प्रदेश निर्वाचक नामावली — AI आधारित समुदाय, जाति एवं रिश्तेदार क्लस्टर विश्लेषण</p>
+                    <p>निर्वाचक नामावली (मतदाता सूची) — समुदाय, जाति एवं रिश्तेदार क्लस्टर विश्लेषण</p>
                 </div>
             </div>
             <div class="header-actions">
@@ -541,7 +541,7 @@
 
                 <div class="kpi-card">
                     <div class="kpi-header">
-                        <span class="kpi-title">AI जाति वर्गीकृत</span>
+                        <span class="kpi-title">स्वतः जाति वर्गीकृत</span>
                         <div class="kpi-icon-box" style="background: #F3E8FF; color: #7C3AED;">🧬</div>
                     </div>
                     <div class="kpi-value" id="kpiClassifiedCount" style="color: #7C3AED;">0</div>
@@ -550,7 +550,7 @@
 
                 <div class="kpi-card">
                     <div class="kpi-header">
-                        <span class="kpi-title">पारिवारिक व क्लस्टर AI</span>
+                        <span class="kpi-title">पारिवारिक व क्लस्टर मिलान</span>
                         <div class="kpi-icon-box" style="background: #FEF3C7; color: #D97706;">🏠</div>
                     </div>
                     <div class="kpi-value" id="kpiHouseholdAiCount" style="color: #D97706;">0</div>
@@ -588,7 +588,7 @@
                     <div class="chart-card-header">
                         <span class="chart-card-title">
                             <i data-lucide="cpu" style="width: 20px; height: 20px; color: #7C3AED;"></i>
-                            AI जाति वर्गीकरण पद्धति (Classification Methodology)
+                            जाति वर्गीकरण पद्धति (Classification Methodology)
                         </span>
                     </div>
                     <div class="chart-wrapper" style="max-height: 320px;">
@@ -857,7 +857,7 @@
             chartInstances.methodology = new Chart(ctx, {
                 type: 'pie',
                 data: {
-                    labels: ['📜 प्रत्यक्ष उपनाम मिलान', '🏠 मकान AI क्लस्टर', '🧬 पारिवारिक रिश्ता (Kinship AI)'],
+                    labels: ['📜 प्रत्यक्ष उपनाम मिलान', '🏠 मकान क्लस्टर', '🧬 पारिवारिक रिश्ता (Kinship Match)'],
                     datasets: [{
                         data: [direct, household, lineage],
                         backgroundColor: ['#3B82F6', '#D97706', '#8B5CF6'],
