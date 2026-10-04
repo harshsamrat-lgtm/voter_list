@@ -27,12 +27,15 @@ from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict
 
 from ..config import BASE_DIR, DATA_DIR
-from .ai_search import normalize_devanagari, transliterate_latin_to_hindi, get_phonetic_key
+from .ai_search import normalize_devanagari, transliterate_latin_to_hindi, get_phonetic_key, expand_search_query
 from .local_caste_ai import (
     clean_and_normalize_name,
+    are_person_names_matching,
     are_names_related,
+    check_kinship_between_voters,
     _get_voter_field
 )
+from .validator import clean_house_no
 
 NP_SURVEY_API_URL = os.getenv("NP_SURVEY_API_URL", "http://127.0.0.1:9002/api/voter-sync")
 CACHE_STREETS_FILE = DATA_DIR / "survey_cache_streets.json"
@@ -936,6 +939,9 @@ class PropertySurveySync:
         by_ns = defaultdict(list)
         by_phon_lead = defaultdict(list)
         by_first_tok = defaultdict(list)
+        by_part = defaultdict(list)
+        by_house = defaultdict(list)
+        by_epic = {}
 
         for v in all_voters:
             v_name_clean = clean_and_normalize_name(v.get("name") or "")
@@ -984,12 +990,27 @@ class PropertySurveySync:
                     if len(lead) >= 2:
                         by_phon_lead[lead].append(item)
 
+            part_val = str(v.get("part_no") or "").strip()
+            if part_val:
+                by_part[part_val].append(item)
+
+            h_clean = clean_house_no(v.get("house_no") or "")
+            if h_clean:
+                by_house[h_clean].append(item)
+
+            ep = str(v.get("epic_no") or "").strip().upper()
+            if ep:
+                by_epic[ep] = item
+
         return {
             "items": prepped,
             "by_token": by_token,
             "by_ns": by_ns,
             "by_first_tok": by_first_tok,
-            "by_phon_lead": by_phon_lead
+            "by_phon_lead": by_phon_lead,
+            "by_part": by_part,
+            "by_house": by_house,
+            "by_epic": by_epic
         }
 
     @classmethod
@@ -999,12 +1020,19 @@ class PropertySurveySync:
         relative_name: str,
         all_voters: Any,
         gender_hint: Optional[str] = None,
-        member_age: Optional[int] = None
+        member_age: Optional[int] = None,
+        household_anchors: Optional[List[Dict[str, Any]]] = None,
+        survey_house_no: Optional[str] = None,
+        relationship: Optional[str] = None
     ) -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
-        Matches a survey family member strictly on (Member Name + Relative Name) phonetically
-        across the ENTIRE voter database with age proximity and gender weighting.
-        Seamlessly handles both Hindi Devanagari and English/Roman script entries.
+        Local AI Matcher for Street Survey Voter Mapping.
+        Combines:
+        1. Household Kinship Local AI: If an anchor voter (e.g. parent, spouse) is already
+           identified in the house, prioritizes voters within that anchor's part_no and serial window.
+        2. Local AI Phonetic & Multilingual Search: Handles English/Hinglish transliteration,
+           Devanagari normalization (matras, sound-alike consonants), and unified Soundex keys.
+        3. Kinship relationship weighting (husband/wife, parent/child, siblings) with age/gender proximity.
         """
         m_str = (member_name or "").strip()
         r_str = (relative_name or "").strip()
@@ -1012,38 +1040,119 @@ class PropertySurveySync:
         if not m_str:
             return False, None, "सदस्य का नाम रिक्त है"
 
-        # Detect Latin / English characters in surveyor input
-        has_latin_m = bool(re.search(r'[a-zA-Z]', m_str))
-        has_latin_r = bool(re.search(r'[a-zA-Z]', r_str))
-
-        if has_latin_m:
-            trans_m = transliterate_latin_to_hindi(m_str)
-            clean_m = clean_and_normalize_name(trans_m)
-        else:
-            clean_m = clean_and_normalize_name(m_str)
-
-        if has_latin_r:
-            trans_r = transliterate_latin_to_hindi(r_str)
-            clean_r = clean_and_normalize_name(trans_r)
-        else:
-            clean_r = clean_and_normalize_name(r_str)
-
+        # Expand member and relative queries using Local AI Search Engine
+        m_exp = expand_search_query(m_str)
+        clean_m = clean_and_normalize_name(m_exp["exact_variants"][0] if m_exp["exact_variants"] else m_str)
         norm_m = normalize_devanagari(clean_m)
-        norm_r = normalize_devanagari(clean_r) if clean_r else ""
         norm_m_ns = re.sub(r'\s+', '', norm_m)
-        norm_r_ns = re.sub(r'\s+', '', norm_r)
         phon_m = get_phonetic_key(clean_m)
+
+        r_exp = expand_search_query(r_str) if r_str else None
+        clean_r = clean_and_normalize_name(r_exp["exact_variants"][0] if r_exp and r_exp["exact_variants"] else r_str) if r_str else ""
+        norm_r = normalize_devanagari(clean_r) if clean_r else ""
+        norm_r_ns = re.sub(r'\s+', '', norm_r)
         phon_r = get_phonetic_key(clean_r) if clean_r else ""
 
         tokens_m = norm_m.split()
         first_tok = tokens_m[0] if tokens_m else ""
 
         is_prepped = isinstance(all_voters, dict) and "by_token" in all_voters
+        m_age = int(member_age or 0)
+
+        # ---------------------------------------------------------------------
+        # TIER 1: HOUSEHOLD KINSHIP LOCAL AI (Anchor Voter Assisted Matching)
+        # ---------------------------------------------------------------------
+        if is_prepped and household_anchors:
+            for anchor in household_anchors:
+                a_raw = anchor.get("raw") if "raw" in anchor else anchor
+                a_part = str(a_raw.get("part_no") or "").strip()
+                if not a_part or a_part not in all_voters.get("by_part", {}):
+                    continue
+
+                try:
+                    a_serial = int(a_raw.get("serial_no") or 0)
+                except (ValueError, TypeError):
+                    a_serial = 0
+
+                a_house_clean = clean_house_no(a_raw.get("house_no") or "")
+
+                part_candidates = all_voters["by_part"][a_part]
+                for item in part_candidates:
+                    v = item["raw"]
+                    v_serial = item.get("raw", {}).get("serial_no") or 0
+                    try:
+                        v_serial = int(v_serial)
+                    except (ValueError, TypeError):
+                        v_serial = 0
+
+                    v_house_clean = clean_house_no(v.get("house_no") or "")
+                    serial_gap = abs(v_serial - a_serial) if (v_serial and a_serial) else 999
+
+                    # Candidates in same part within serial proximity (<= 25) or same house
+                    if serial_gap > 25 and (not v_house_clean or v_house_clean != a_house_clean):
+                        continue
+
+                    v_norm_m = item["norm_m"]
+                    v_norm_m_ns = item["norm_m_ns"]
+                    v_norm_r = item["norm_r"]
+                    v_norm_r_ns = item["norm_r_ns"]
+                    v_phon_m = item["phon_m"]
+                    v_phon_r = item["phon_r"]
+                    v_gender = item["gender"]
+                    v_age = item["age"]
+
+                    # Check name match using Local AI
+                    m_matched = False
+                    if norm_m_ns == v_norm_m_ns or norm_m == v_norm_m:
+                        m_matched = True
+                    elif are_person_names_matching(clean_m, v.get("name")):
+                        m_matched = True
+                    elif phon_m and v_phon_m and phon_m == v_phon_m:
+                        m_matched = True
+
+                    if not m_matched:
+                        continue
+
+                    # Check kinship match with anchor
+                    is_kin, kin_reason = check_kinship_between_voters(a_raw, v)
+                    rel_matches_anchor = bool(
+                        (norm_r_ns and are_person_names_matching(clean_r, a_raw.get("name"))) or
+                        (norm_r_ns and v_norm_r_ns and are_person_names_matching(clean_r, v.get("relation_name")))
+                    )
+
+                    # Gender alignment
+                    gender_ok = True
+                    if gender_hint and v_gender:
+                        if (gender_hint in ("महिला", "स्त्री", "Female", "female", "F") and v_gender in ("पुरुष", "नर")) or \
+                           (gender_hint in ("पुरुष", "नर", "Male", "male", "M") and v_gender in ("महिला", "स्त्री")):
+                            gender_ok = False
+
+                    if not gender_ok:
+                        continue
+
+                    # Age diff check
+                    if m_age > 0 and v_age > 0 and abs(m_age - v_age) > 12:
+                        continue
+
+                    if is_kin or rel_matches_anchor or serial_gap <= 7:
+                        desc = f"🤖 लोकल AI (पारिवारिक संबंध व भाग {a_part} मिलान)"
+                        return True, v, desc
+
+        # ---------------------------------------------------------------------
+        # TIER 2: GLOBAL LOCAL AI PHONETIC & MULTILINGUAL MATCHING
+        # ---------------------------------------------------------------------
         if is_prepped:
             candidates = {}
             if norm_m_ns in all_voters["by_ns"]:
                 for it in all_voters["by_ns"][norm_m_ns]:
                     candidates[id(it)] = it
+
+            # Include candidates from transliterated / normalized variants
+            for n_var in m_exp.get("normalized_variants", []):
+                n_var_ns = re.sub(r'\s+', '', n_var)
+                if n_var_ns in all_voters["by_ns"]:
+                    for it in all_voters["by_ns"][n_var_ns]:
+                        candidates[id(it)] = it
 
             if first_tok in all_voters["by_first_tok"]:
                 for it in all_voters["by_first_tok"][first_tok]:
@@ -1067,7 +1176,7 @@ class PropertySurveySync:
 
         best_candidate = None
         best_score = 0
-        m_age = int(member_age or 0)
+        s_house_clean = clean_house_no(survey_house_no) if survey_house_no else ""
 
         for item in candidate_list:
             if is_prepped:
@@ -1098,21 +1207,27 @@ class PropertySurveySync:
 
             # 1. Member name matching
             m_matched = False
+            m_score = 0
             if norm_m_ns == v_norm_m_ns or norm_m == v_norm_m:
                 m_matched = True
-            elif are_names_related(norm_m, v_norm_m):
+                m_score = 100
+            elif are_person_names_matching(clean_m, v.get("name")):
                 m_matched = True
+                m_score = 95
             elif phon_m and v_phon_m:
                 if phon_m == v_phon_m:
                     m_matched = True
+                    m_score = 90
                 else:
                     pm_words = phon_m.split()
                     vpm_words = v_phon_m.split()
                     if pm_words and vpm_words and pm_words[0] == vpm_words[0]:
                         if phon_m.startswith(v_phon_m) or v_phon_m.startswith(phon_m):
                             m_matched = True
+                            m_score = 85
                         elif set(vpm_words).issubset(set(pm_words)) or set(pm_words).issubset(set(vpm_words)):
                             m_matched = True
+                            m_score = 80
 
             if not m_matched:
                 continue
@@ -1124,7 +1239,7 @@ class PropertySurveySync:
                 if norm_r_ns == v_norm_r_ns or norm_r == v_norm_r:
                     r_matched = True
                     r_score = 100
-                elif are_names_related(norm_r, v_norm_r):
+                elif are_person_names_matching(clean_r, v.get("relation_name")):
                     r_matched = True
                     r_score = 95
                 elif phon_r and v_phon_r:
@@ -1140,7 +1255,7 @@ class PropertySurveySync:
                                 r_score = 85
                             elif set(vpr_words).issubset(set(pr_words)) or set(pr_words).issubset(set(vpr_words)):
                                 r_matched = True
-                                r_score = 85
+                                r_score = 80
             elif not norm_r_ns:
                 # Relative name not captured in survey
                 r_matched = True
@@ -1149,7 +1264,7 @@ class PropertySurveySync:
             if not r_matched:
                 continue
 
-            score = r_score
+            score = (m_score + r_score) // 2
 
             # 3. Gender check
             if gender_hint and v_gender:
@@ -1172,16 +1287,25 @@ class PropertySurveySync:
                 elif diff <= 15:
                     score -= 15
                 else:
-                    score -= 40
+                    score -= 35
+
+            # 5. House number match bonus
+            if s_house_clean:
+                v_h_clean = clean_house_no(v.get("house_no") or "")
+                if v_h_clean and v_h_clean == s_house_clean:
+                    score += 20
 
             if score > best_score:
                 best_score = score
                 best_candidate = v
-                if score >= 110:
+                if score >= 115:
                     break
 
         if best_candidate and best_score >= 68:
-            desc = "नाम व संबंधी का सटीक/ध्वन्यात्मक मिलान"
+            if best_score >= 100:
+                desc = "🤖 लोकल AI (सटीक नाम व संबंधी मिलान)"
+            else:
+                desc = "🤖 लोकल AI (ध्वन्यात्मक व वर्तनी सहनशीलता मिलान)"
             return True, best_candidate, desc
 
         return False, None, "वोटर लिस्ट में नाम व संबंधी का रिकॉर्ड नहीं मिला"
@@ -1195,6 +1319,7 @@ class PropertySurveySync:
         """
         Takes raw street survey data,
         and annotates every house and 17+ member with their live voter registration status.
+        Uses Local AI Household Kinship and Phonetic Matching with two-pass propagation.
         Integrates active manual member-to-voter mappings with highest precedence.
         """
         from .database import VoterDatabase
@@ -1218,95 +1343,142 @@ class PropertySurveySync:
             house_registered = 0
             house_unregistered = 0
 
+            # Gather initial household anchors from existing manual mappings or pre-verified EPICs
+            household_anchors = []
             for m in members:
-                total_eligible += 1
-                m_name = m.get("name") or ""
-                m_rel = m.get("fatherHusbandName") or ""
-                m_gender = m.get("gender") or ""
-                m_age = int(m.get("age") or 0)
                 m_id = m.get("memberId") or ""
                 m_key = f"{fam_id}_{m_id}" if fam_id and m_id else ""
+                manual_map = existing_mappings.get(m_key)
+                if manual_map and manual_map.get("voter_id"):
+                    v_rec = next((v["raw"] for v in prepped_voters["items"] if v["raw"]["id"] == manual_map.get("voter_id")), None)
+                    if v_rec:
+                        household_anchors.append(v_rec)
+                elif m.get("voterEpic") and m.get("voterEpic").strip().upper() in prepped_voters.get("by_epic", {}):
+                    household_anchors.append(prepped_voters["by_epic"][m.get("voterEpic").strip().upper()]["raw"])
 
+            # Pass 1: Match with anchors or high-confidence standalone
+            temp_matches = {}
+            for idx, m in enumerate(members):
+                m_id = m.get("memberId") or ""
+                m_key = f"{fam_id}_{m_id}" if fam_id and m_id else ""
                 manual_map = existing_mappings.get(m_key)
                 if not manual_map and m.get("isVoterRegistered") and m.get("voterEpic"):
                     manual_map = {
                         "epic_no": m.get("voterEpic"),
                         "part_no": m.get("voterPartNo"),
                         "serial_no": m.get("voterSerialNo"),
-                        "voter_name": m.get("voterName") or m_name,
+                        "voter_name": m.get("voterName") or m.get("name"),
                         "voter_id": None
                     }
 
                 if manual_map:
-                    is_reg = True
+                    temp_matches[idx] = (True, manual_map, "मैन्युअल मैपिंग द्वारा सत्यापित (Manual Verified Mapping)", True)
+                else:
+                    m_name = m.get("name") or ""
+                    m_rel = m.get("fatherHusbandName") or ""
+                    m_gender = m.get("gender") or ""
+                    m_age = int(m.get("age") or 0)
+                    is_reg, v_match, match_desc = cls.match_member_against_all_voters(
+                        m_name, m_rel, prepped_voters,
+                        gender_hint=m_gender,
+                        member_age=m_age,
+                        household_anchors=household_anchors,
+                        survey_house_no=house.get("houseNumber"),
+                        relationship=m.get("relationship")
+                    )
+                    if is_reg and v_match:
+                        temp_matches[idx] = (is_reg, v_match, match_desc, False)
+                        household_anchors.append(v_match)
+
+            # Pass 2: Re-evaluate any unmapped members using all collected household anchors
+            for idx, m in enumerate(members):
+                if idx not in temp_matches:
+                    m_name = m.get("name") or ""
+                    m_rel = m.get("fatherHusbandName") or ""
+                    m_gender = m.get("gender") or ""
+                    m_age = int(m.get("age") or 0)
+                    is_reg, v_match, match_desc = cls.match_member_against_all_voters(
+                        m_name, m_rel, prepped_voters,
+                        gender_hint=m_gender,
+                        member_age=m_age,
+                        household_anchors=household_anchors,
+                        survey_house_no=house.get("houseNumber"),
+                        relationship=m.get("relationship")
+                    )
+                    if is_reg and v_match:
+                        temp_matches[idx] = (is_reg, v_match, match_desc, False)
+                        household_anchors.append(v_match)
+
+            # Build final annotated members
+            for idx, m in enumerate(members):
+                total_eligible += 1
+                m_age = int(m.get("age") or 0)
+                m_name = m.get("name") or ""
+                m_rel = m.get("fatherHusbandName") or ""
+
+                if idx in temp_matches:
+                    is_reg, v_data, match_desc, is_manual = temp_matches[idx]
                     total_registered += 1
                     house_registered += 1
                     status = "registered"
-                    status_label = "वोट बना हुआ है (मैप किया गया)"
                     status_badge = "success"
-                    action_needed = "सत्यापित (मैप किया गया)"
-                    match_desc = "मैन्युअल मैपिंग द्वारा सत्यापित (Manual Verified Mapping)"
-                    voter_info = {
-                        "id": manual_map.get("voter_id"),
-                        "epic_no": manual_map.get("epic_no") or "उपलब्ध नहीं",
-                        "part_no": manual_map.get("part_no"),
-                        "serial_no": manual_map.get("serial_no"),
-                        "voter_name": manual_map.get("voter_name") or m_name,
-                        "voter_relative": m_rel,
-                        "relation_type": "पिता",
-                        "voter_house": house.get("houseNumber") or "",
-                        "voter_age": m.get("age"),
-                        "voter_gender": m.get("gender"),
-                        "caste_key": None,
-                        "caste_label": None,
-                        "is_manual_mapped": True
-                    }
-                else:
-                    is_reg, v_match, match_desc = cls.match_member_against_all_voters(
-                        m_name, m_rel, prepped_voters, gender_hint=m_gender, member_age=m_age
-                    )
 
-                    if is_reg and v_match:
-                        total_registered += 1
-                        house_registered += 1
-                        status = "registered"
-                        status_label = "वोट बना हुआ है"
-                        status_badge = "success"
+                    if is_manual:
+                        status_label = "वोट बना हुआ है (मैप किया गया)"
+                        action_needed = "सत्यापित (मैप किया गया)"
                         voter_info = {
-                            "id": v_match.get("id"),
-                            "epic_no": v_match.get("epic_no") or "उपलब्ध नहीं",
-                            "part_no": v_match.get("part_no"),
-                            "serial_no": v_match.get("serial_no"),
-                            "voter_name": v_match.get("name"),
-                            "voter_relative": v_match.get("relation_name"),
-                            "relation_type": v_match.get("relation_type") or "पिता",
-                            "voter_house": v_match.get("house_no") or "",
-                            "voter_age": v_match.get("age"),
-                            "voter_gender": v_match.get("gender"),
-                            "caste_key": v_match.get("caste_key"),
-                            "caste_label": v_match.get("caste_reason") or v_match.get("caste_key"),
+                            "id": v_data.get("voter_id"),
+                            "epic_no": v_data.get("epic_no") or "उपलब्ध नहीं",
+                            "part_no": v_data.get("part_no"),
+                            "serial_no": v_data.get("serial_no"),
+                            "voter_name": v_data.get("voter_name") or m_name,
+                            "voter_relative": m_rel,
+                            "relation_type": "पिता",
+                            "voter_house": house.get("houseNumber") or "",
+                            "voter_age": m.get("age"),
+                            "voter_gender": m.get("gender"),
+                            "caste_key": None,
+                            "caste_label": None,
+                            "is_manual_mapped": True
+                        }
+                    else:
+                        status_label = "वोट बना हुआ है (लोकल AI सत्यापित)"
+                        action_needed = "सत्यापित (पंजीकृत)"
+                        voter_info = {
+                            "id": v_data.get("id"),
+                            "epic_no": v_data.get("epic_no") or "उपलब्ध नहीं",
+                            "part_no": v_data.get("part_no"),
+                            "serial_no": v_data.get("serial_no"),
+                            "voter_name": v_data.get("name"),
+                            "voter_relative": v_data.get("relation_name"),
+                            "relation_type": v_data.get("relation_type") or "पिता",
+                            "voter_house": v_data.get("house_no") or "",
+                            "voter_age": v_data.get("age"),
+                            "voter_gender": v_data.get("gender"),
+                            "caste_key": v_data.get("caste_key"),
+                            "caste_label": v_data.get("caste_reason") or v_data.get("caste_key"),
                             "is_manual_mapped": False
                         }
-                        action_needed = "सत्यापित (पंजीकृत)"
-                    else:
-                        total_unregistered += 1
-                        house_unregistered += 1
-                        status = "unregistered"
-                        status_badge = "danger"
-                        voter_info = None
+                else:
+                    total_unregistered += 1
+                    house_unregistered += 1
+                    status = "unregistered"
+                    status_badge = "danger"
+                    match_desc = "वोटर लिस्ट में नाम व संबंधी का रिकॉर्ड नहीं मिला"
+                    voter_info = None
 
-                        if m_age >= 18:
-                            form6_18plus += 1
-                            status_label = "वोट नहीं बना (18+ पात्र)"
-                            action_needed = "फॉर्म 6 (नया मतदाता आवेदन पत्र)"
-                        else:
-                            form6_17plus += 1
-                            status_label = "वोट नहीं बना (17+ अग्रिम पात्र)"
-                            action_needed = "अग्रिम फॉर्म 6 (17+ युवा अग्रिम पंजीकरण)"
+                    if m_age >= 18:
+                        form6_18plus += 1
+                        status_label = "वोट नहीं बना (18+ पात्र)"
+                        action_needed = "फॉर्म 6 (नया मतदाता आवेदन पत्र)"
+                    else:
+                        form6_17plus += 1
+                        status_label = "वोट नहीं बना (17+ अग्रिम पात्र)"
+                        action_needed = "अग्रिम फॉर्म 6 (17+ युवा अग्रिम पंजीकरण)"
 
                 annotated_members.append({
                     **m,
-                    "isRegistered": is_reg,
+                    "isRegistered": is_reg if idx in temp_matches else False,
                     "status": status,
                     "statusLabel": status_label,
                     "statusBadge": status_badge,
@@ -1337,4 +1509,138 @@ class PropertySurveySync:
             "form6_18plusCount": form6_18plus,
             "form6_17plusCount": form6_17plus,
             "houses": annotated_houses
+        }
+
+    @classmethod
+    def auto_map_family_local_ai(
+        cls,
+        family_id: str,
+        survey_id: Optional[str] = None,
+        overwrite_existing: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Uses Local AI Household Kinship and Phonetic Matching to auto-map all eligible
+        unmapped members of the specified NPPropertyServey family to voter records in database.
+        """
+        from .database import VoterDatabase
+
+        if not family_id or not family_id.strip():
+            return {"success": False, "error": "family_id आवश्यक है"}
+
+        # 1. Fetch all active voters for audit
+        all_voters = VoterDatabase.get_all_voters_for_audit()
+        if not all_voters:
+            return {"success": False, "error": "डेटाबेस में कोई मतदाता रिकॉर्ड नहीं मिला"}
+
+        prepped_voters = cls.prepare_voter_index(all_voters)
+
+        # 2. Fetch family data from NPPropertyServey (Firestore or API)
+        family_record = None
+        fs_client = FirestoreDirectClient.get_instance()
+        if fs_client:
+            try:
+                token = fs_client.get_token()
+                f_url = f"https://firestore.googleapis.com/v1/projects/{fs_client.project_id}/databases/(default)/documents/families/{family_id}"
+                req = urllib.request.Request(f_url, headers={"Authorization": f"Bearer {token}"})
+                with urllib.request.urlopen(req, timeout=5.0) as resp:
+                    doc = json.loads(resp.read().decode("utf-8"))
+                    from_firestore = fs_client._parse_document(doc)
+                    family_record = from_firestore
+            except Exception:
+                pass
+
+        if not family_record and CACHE_STREETS_FILE.exists():
+            try:
+                with open(CACHE_STREETS_FILE, "r", encoding="utf-8") as f:
+                    cached_streets = json.load(f)
+                for h in cached_streets.get("houses", []):
+                    if h.get("familyId") == family_id:
+                        family_record = h
+                        break
+            except Exception:
+                pass
+
+        if not family_record:
+            return {"success": False, "error": f"फैमिली आईडी '{family_id}' का सर्वे रिकॉर्ड नहीं मिला"}
+
+        members = family_record.get("members") or family_record.get("eligibleMembers") or []
+        existing_mappings = {m["member_id"]: m for m in VoterDatabase.get_mappings_by_family(family_id)}
+
+        # Initial household anchors
+        household_anchors = []
+        for m in members:
+            m_id = str(m.get("memberId") or "")
+            if m_id in existing_mappings:
+                v_id = existing_mappings[m_id].get("voter_id")
+                v_rec = next((v["raw"] for v in prepped_voters["items"] if v["raw"]["id"] == v_id), None)
+                if v_rec:
+                    household_anchors.append(v_rec)
+            elif m.get("voterEpic") and str(m.get("voterEpic")).strip().upper() in prepped_voters.get("by_epic", {}):
+                household_anchors.append(prepped_voters["by_epic"][str(m.get("voterEpic")).strip().upper()]["raw"])
+
+        newly_mapped = []
+        already_mapped_count = 0
+
+        # Two-pass Local AI matching
+        for pass_num in (1, 2):
+            for m in members:
+                m_id = str(m.get("memberId") or "")
+                if not m_id:
+                    continue
+
+                if m_id in existing_mappings and not overwrite_existing:
+                    if pass_num == 1:
+                        already_mapped_count += 1
+                    continue
+
+                # Skip if already newly mapped in pass 1
+                if any(nm["member_id"] == m_id for nm in newly_mapped):
+                    continue
+
+                m_name = m.get("name") or ""
+                m_rel = m.get("fatherHusbandName") or ""
+                m_gender = m.get("gender") or ""
+                m_age = int(m.get("age") or 0)
+
+                is_reg, v_match, desc = cls.match_member_against_all_voters(
+                    m_name, m_rel, prepped_voters,
+                    gender_hint=m_gender,
+                    member_age=m_age,
+                    household_anchors=household_anchors,
+                    survey_house_no=family_record.get("houseNumber"),
+                    relationship=m.get("relationship")
+                )
+
+                if is_reg and v_match:
+                    v_id = v_match.get("id")
+                    save_res = VoterDatabase.save_member_voter_mapping(
+                        family_id=family_id,
+                        member_id=m_id,
+                        voter_id=v_id,
+                        survey_id=survey_id or family_record.get("id") or "",
+                        member_name=m_name,
+                        notes=desc
+                    )
+                    cls.sync_mapping_to_np_survey(save_res)
+                    household_anchors.append(v_match)
+
+                    newly_mapped.append({
+                        "member_id": m_id,
+                        "member_name": m_name,
+                        "voter_id": v_id,
+                        "voter_name": v_match.get("name"),
+                        "epic_no": v_match.get("epic_no"),
+                        "part_no": v_match.get("part_no"),
+                        "serial_no": v_match.get("serial_no"),
+                        "match_description": desc
+                    })
+
+        return {
+            "success": True,
+            "family_id": family_id,
+            "total_members": len(members),
+            "newly_mapped_count": len(newly_mapped),
+            "already_mapped_count": already_mapped_count,
+            "newly_mapped": newly_mapped,
+            "message": f"🤖 लोकल AI द्वारा {len(newly_mapped)} सदस्यों को सफलतापूर्वक वोटर लिस्ट से मैप कर दिया गया।" if newly_mapped else "लोकल AI द्वारा कोई नया सदस्य मैच नहीं मिला (सभी पहले से मैप हैं या रिकॉर्ड नहीं मिला)।"
         }

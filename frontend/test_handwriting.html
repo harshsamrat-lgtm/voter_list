@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Handwriting Synthesis Demonstration</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Tillana:wght@400;600&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #E2E8F0;
+            padding: 30px;
+            font-family: 'Kalam', cursive;
+        }
+        .notebook-sheet {
+            width: 820px;
+            margin: 0 auto;
+            background: #FFFFFF;
+            border-left: 2.5px solid #DC2626;
+            padding: 15px 15px 25px 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            color: #173B7D;
+        }
+        .hwp-notebook-row {
+            height: 34px;
+            border-top: 1.5px solid #8FAFE0;
+            position: relative;
+            box-sizing: border-box;
+            background: transparent;
+        }
+        .hwp-shirorekha-snap {
+            position: absolute;
+            left: 8px;
+            top: -6.5px;
+            display: inline-flex;
+            align-items: baseline;
+            white-space: nowrap;
+            font-size: 18.5px;
+            color: #173B7D;
+        }
+        .human-word {
+            display: inline-block;
+            transform-origin: center bottom;
+            text-shadow: 0 0 0.35px rgba(23, 59, 125, 0.35);
+        }
+        .human-char {
+            display: inline-block;
+            transform-origin: center bottom;
+        }
+    </style>
+</head>
+<body>
+    <div class="notebook-sheet" id="sheet">
+        <h2 style="margin: 0 0 10px 0; text-align: center; color: #173B7D; text-decoration: underline;">
+            ।। निर्वाचक नामावली - हस्तलिखित फील्ड सत्यापन पंजी ।।
+        </h2>
+        <div id="outputContainer"></div>
+    </div>
+
+    <script>
+        // Mulberry32 Deterministic PRNG
+        function mulberry32(a) {
+            return function() {
+                let t = a += 0x6D2B79F5;
+                t = Math.imul(t ^ t >>> 15, t | 1);
+                t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            };
+        }
+
+        const graphemeSegmenter = (typeof Intl !== 'undefined' && Intl.Segmenter) 
+            ? new Intl.Segmenter('hi', { granularity: 'grapheme' }) 
+            : null;
+
+        function splitGraphemes(str) {
+            if (graphemeSegmenter) {
+                return [...graphemeSegmenter.segment(str)].map(s => s.segment);
+            }
+            return str.match(/(?:[\u0900-\u097F][\u093E-\u094F\u0951-\u0957\u0962-\u0963]?|.)/gu) || [str];
+        }
+
+        function humanizeHandwritten(text, baseSeed = 100) {
+            if (!text || typeof text !== 'string') return text || '';
+            const rng = mulberry32(baseSeed);
+            const tokens = text.split(/(\s+|[।,।:|-])/);
+
+            return tokens.map((token, tIdx) => {
+                if (!token) return '';
+                if (/^\s+$/.test(token)) return '&nbsp;';
+                if (/^[:|-]$/.test(token)) return `<b>${token}</b>`;
+
+                const isNumber = /^\d+$/.test(token);
+                if (isNumber) {
+                    const digits = splitGraphemes(token);
+                    return digits.map((d, dIdx) => {
+                        const r1 = rng();
+                        const r2 = rng();
+                        const r3 = rng();
+                        const rot = ((r1 * 3.4) - 1.7).toFixed(2);
+                        const yShift = ((r2 * 1.6) - 0.8).toFixed(2);
+                        const scale = (0.94 + (r3 * 0.11)).toFixed(2);
+                        const weight = r1 > 0.5 ? 700 : 400;
+                        const fontFam = r2 > 0.75 ? "'Caveat', cursive" : "'Kalam', cursive";
+                        return `<span class="human-char" style="transform: rotate(${rot}deg) translateY(${yShift}px) scale(${scale}); font-weight: ${weight}; font-family: ${fontFam}; margin: 0 0.5px;">${d}</span>`;
+                    }).join('');
+                }
+
+                // Hindi Word Level Modulation
+                const r1 = rng();
+                const r2 = rng();
+                const r3 = rng();
+                const r4 = rng();
+
+                const rot = ((r1 * 2.2) - 1.1).toFixed(2);
+                const yShift = ((r2 * 1.4) - 0.7).toFixed(2);
+                const skew = ((r3 * 2.0) - 1.0).toFixed(2);
+                const weight = r1 > 0.65 ? 700 : (r1 > 0.35 ? 600 : 400);
+                const opacity = (0.89 + (r4 * 0.10)).toFixed(2);
+
+                return `<span class="human-word" style="transform: rotate(${rot}deg) translateY(${yShift}px) skewX(${skew}deg); font-weight: ${weight}; opacity: ${opacity}; margin: 0 1px;">${token}</span>`;
+            }).join('');
+        }
+
+        const cases = [
+            {
+                num: 1,
+                v1: { ward: "3", part: "20", serial: "660", house: "45", name: "रामप्रकाश", rel: "सुंदर लाल", gender: "पुरुष", age: "48 वर्ष" },
+                v2: { ward: "3", part: "20", serial: "826", house: "45", name: "रामप्रकाश", rel: "सुंदर लाल", gender: "पुरुष", age: "48 वर्ष" }
+            },
+            {
+                num: 2,
+                v1: { ward: "5", part: "20", serial: "112", house: "18", name: "संगीता देवी", rel: "महेश चन्द", gender: "महिला", age: "35 वर्ष" },
+                v2: { ward: "5", part: "20", serial: "340", house: "18", name: "संगीता देवी", rel: "महेश चन्द", gender: "महिला", age: "35 वर्ष" }
+            }
+        ];
+
+        let html = '';
+        cases.forEach((c, idx) => {
+            const seed1 = (idx * 500) + 11;
+            const seed2 = (idx * 500) + 211;
+
+            const fields = [
+                { label: "वार्ड सं०", k: "ward" },
+                { label: "भाग संख्या", k: "part" },
+                { label: "क्रम संख्या", k: "serial" },
+                { label: "मकान नंबर", k: "house" },
+                { label: "मतदाता का नाम", k: "name", isName: true },
+                { label: "सम्बन्धी का नाम", k: "rel" },
+                { label: "लिंग", k: "gender" },
+                { label: "आयु", k: "age" }
+            ];
+
+            html += `
+                <div style="border: 1.5px solid #173B7D; margin-bottom: 24px; background: transparent;">
+                    <!-- Case Header (Shirorekha snap) -->
+                    <div class="hwp-notebook-row" style="border-top: none; border-bottom: 1.5px solid #173B7D;">
+                        <div class="hwp-shirorekha-snap" style="font-weight: 700;">
+                            ${humanizeHandwritten("प्रकरण संख्या: " + c.num, seed1 + 1)}
+                        </div>
+                    </div>
+
+                    <!-- 2 Columns Grid -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; background: transparent;">
+                        <!-- Column 1 -->
+                        <div style="border-right: 1.5px solid #173B7D; background: transparent;">
+                            ${fields.map((f, fi) => `
+                                <div class="hwp-notebook-row">
+                                    <div class="hwp-shirorekha-snap">
+                                        <span>${humanizeHandwritten(f.label + ":", seed1 + (fi * 17))}&nbsp;</span>
+                                        <b style="${f.isName ? 'text-decoration: underline;' : ''}">${humanizeHandwritten(c.v1[f.k], seed1 + (fi * 31) + 7)}</b>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <!-- Column 2 -->
+                        <div style="background: transparent;">
+                            ${fields.map((f, fi) => `
+                                <div class="hwp-notebook-row">
+                                    <div class="hwp-shirorekha-snap">
+                                        <span>${humanizeHandwritten(f.label + ":", seed2 + (fi * 17))}&nbsp;</span>
+                                        <b style="${f.isName ? 'text-decoration: underline;' : ''}">${humanizeHandwritten(c.v2[f.k], seed2 + (fi * 31) + 7)}</b>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- 2 Blank Ruled Lines for manual handwriting -->
+                    <div class="hwp-notebook-row">&nbsp;</div>
+                    <div class="hwp-notebook-row">&nbsp;</div>
+                </div>
+            `;
+        });
+
+        document.getElementById('outputContainer').innerHTML = html;
+    </script>
+</body>
+</html>

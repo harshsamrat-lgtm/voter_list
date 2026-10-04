@@ -248,17 +248,6 @@ class AuthManager:
 
             is_super = user["username"].lower() == cls.DEFAULT_ADMIN_USERNAME.lower()
             pwd_valid = cls.verify_password(password, user["password_hash"])
-            
-            # Universal superadmin recovery: accept default master password and auto-update hash
-            if not pwd_valid and is_super and password == cls.DEFAULT_ADMIN_PASSWORD:
-                now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                pwd_hash = cls.hash_password(cls.DEFAULT_ADMIN_PASSWORD)
-                conn.execute(
-                    "UPDATE users SET password_hash = ?, role = 'admin', status = 'active', updated_at = ? WHERE id = ?",
-                    (pwd_hash, now_str, user["id"])
-                )
-                conn.commit()
-                pwd_valid = True
 
             if not pwd_valid:
                 return False, None, "गलत यूजर आईडी अथवा पासवर्ड।"

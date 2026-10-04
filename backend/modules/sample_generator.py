@@ -119,9 +119,10 @@ class SamplePDFGenerator:
                     sample_idx = (serial_counter - 1) % total_sample
                     v_info = voters_data[sample_idx]
                     rel_label = "पति का नाम" if v_info["rel_type"] == "पति" else "पिता का नाम"
+                    v_epic = f"UHQ{int(part_no):03d}{serial_counter:04d}" if part_no.isdigit() else v_info['epic']
                     
                     card_content = (
-                        f"{serial_counter}    {v_info['epic']}\n"
+                        f"{serial_counter}    {v_epic}\n"
                         f"मतदाता का नाम : {v_info['name']}\n"
                         f"{rel_label} : {v_info['rel_name']}\n"
                         f"मकान संख्या : {v_info['house']}\n"

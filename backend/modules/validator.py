@@ -258,13 +258,15 @@ def clean_house_no(raw_house: str) -> str:
         # Long word ending in stray OCR zero (e.g. 'बाबराले0', 'शीतल क्लॉथ एंपोरिअम0', 'प्रवेश गुप्ता होम0')
         return ""
 
-    # 7. Split on colony / landmark / address words before cleaning so full address does not leak into house number
-    # e.g. '22हरी बाबा मार्ग' -> '22', '3/हरी भवन' -> '3', '28-ए,वार्ड नं. 2' -> '28-ए', '7बी/, मोह. कल्लू नागला' -> '7बी'
+    # 7. Split on colony / landmark / address / footer words before cleaning so full address does not leak into house number
     val = re.split(
-        r'[,/]?\s*(?:मोहल्ला|मोहाला|मोह\b|वार्ड|कॉलनी|कॉलोनी|मार्ग|नियर|निअर|गली|रोड|सड़क|फेज़|फेस|नगर|नगला|नागला|पोस्ट|मंदिर|स्टोर|भवन|निवास|आश्रम|बबराला|बाबराला|संभल|हरी\s*बाबा|हरी|कटकू|कल्लू|यादवन|लेखपाल|म0न0|म०न०|उत्तर\s*प्रदेश|प्रदेश)',
+        r'[,/]?\s*(?:निर्वाचक|रजिस्ट्रीकरण|अधिकारी|सहायक|हस्ताक्षर|Ǔ[^\w\s]*[\x93\x94\w]*वा|चकरज|èĚȣ|è|mohalla|ward|मोहल्ला|मोहाला|मोह\b|वार्ड|कॉलनी|कॉलोनी|मार्ग|नियर|निअर|गली|रोड|सड़क|फेज़|फेस|नगर|नगला|नागला|पोस्ट|मंदिर|स्टोर|भवन|निवास|आश्रम|बबराला|बाबराला|संभल|हरी\s*बाबा|हरी|कटकू|कल्लू|यादवन|लेखपाल|म0न0|म०न०|उत्तर\s*प्रदेश|प्रदेश)',
         val,
         flags=re.IGNORECASE
     )[0].strip()
+
+    # Strip municipal multi-zero padding (e.g. '300000000' -> '3', '100000' -> '1')
+    val = re.sub(r'(\d+?)0{3,}.*$', r'\1', val).strip()
     
     # 8. Remove brackets, pipes, dandas, quotes, colons, noise symbols (>00, +-0, **, ##, &)
     val = re.sub(r'[><+~*|!।॥”"“\'`#?@^&;_\(\)\[\]{}]+', ' ', val)

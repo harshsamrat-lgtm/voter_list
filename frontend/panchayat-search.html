@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>मतदाता सेवा | Voter Service</title>
-    <meta name="description" content="विधानसभा एवं मतदान केंद्र अनुसार त्वरित मतदाता खोज एवं डिजिटल मतदाता पर्ची">
+    <title>पंचायत एवं स्थानीय निकाय मतदाता सेवा | Panchayat Voter Search</title>
+    <meta name="description" content="ग्राम पंचायत एवं नगर पंचायत अनुसार त्वरित मतदाता खोज एवं आधिकारिक डिजिटल मतदाता सूचना पर्ची">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,6 +20,66 @@
     
     <!-- Custom Search Stylesheet -->
     <link rel="stylesheet" href="/css/search.css">
+    <style>
+        /* Panchayat specific accent tweaks */
+        :root {
+            --primary-panchayat: #4338CA;
+            --primary-panchayat-dark: #312E81;
+            --primary-panchayat-light: #6366F1;
+        }
+        .panchayat-brand-badge {
+            background: rgba(67, 56, 202, 0.12);
+            color: #4338CA;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            display: inline-block;
+            margin-top: 2px;
+        }
+        .hero-panchayat-gradient {
+            background: linear-gradient(135deg, #1E1B4B 0%, #312E81 50%, #4338CA 100%) !important;
+            color: white !important;
+        }
+        .hero-panchayat-gradient .hero-title,
+        .hero-panchayat-gradient .hero-subtitle {
+            color: white !important;
+        }
+        .hero-panchayat-gradient .hero-badge {
+            background: rgba(255, 255, 255, 0.2);
+            color: #EEF2FF;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .body-type-badge-gram {
+            background: #ECFDF5;
+            color: #047857;
+            border: 1px solid #A7F3D0;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 0.74rem;
+            font-weight: 700;
+        }
+        .body-type-badge-nagar {
+            background: #EEF2FF;
+            color: #4338CA;
+            border: 1px solid #C7D2FE;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 0.74rem;
+            font-weight: 700;
+        }
+        .slip-header-panchayat {
+            border-bottom: 2px solid #4338CA;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .slip-title-panchayat {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #1E1B4B;
+        }
+    </style>
 </head>
 <body>
 
@@ -31,11 +91,11 @@
         <div class="header-inner">
             <div class="brand-group">
                 <div class="brand-icon">
-                    <img src="/assets/logo.png" alt="मतदाता सेवा लोगो" class="portal-logo-img">
+                    <img src="/assets/logo.png" alt="पंचायत वोटर सेवा" class="portal-logo-img">
                 </div>
                 <div class="brand-text">
-                    <h1>मतदाता सेवा</h1>
-                    <p>विधानसभा एवं मतदान केंद्र अनुसार त्वरित मतदाता खोज</p>
+                    <h1>पंचायत एवं स्थानीय निकाय मतदाता सेवा</h1>
+                    <p>ग्राम पंचायत एवं नगर पंचायत अनुसार मतदाता खोज व डिजिटल पर्ची</p>
                 </div>
             </div>
             <div class="header-actions">
@@ -45,16 +105,17 @@
                     <span>रिफ्रेश</span>
                 </button>
 
-                <!-- Link to Panchayat Search Portal -->
-                <a href="/panchayat-search" class="admin-link-btn" title="पंचायत व स्थानीय निकाय वोटर सर्च" style="background: rgba(67, 56, 202, 0.12); color: #4338CA; border: 1px solid rgba(67, 56, 202, 0.3);">
-                    <i data-lucide="layers" style="width: 14px; height: 14px;"></i>
-                    <span>पंचायत सर्च</span>
+                <!-- Link back to Main Voter Portal -->
+                <a href="/" class="admin-link-btn" title="विधानसभा मुख्य पोर्टल">
+                    <i data-lucide="home" style="width: 14px; height: 14px;"></i>
+                    <span>विधानसभा पोर्टल</span>
                 </a>
 
+                <!-- Admin Action Button -->
                 <div class="admin-header-action" id="adminHeaderAction" style="display: none;">
-                    <a href="/admin" class="admin-link-btn" id="adminLinkBtn" title="कनवर्टर एवं डेटाबेस पोर्टल">
+                    <a href="/admin" class="admin-link-btn" id="adminLinkBtn" title="कनवर्टर एवं एडमिन पोर्टल">
                         <i data-lucide="layout-dashboard" id="portalNavIcon" style="width: 14px; height: 14px;"></i> 
-                        <span id="portalNavText">पोर्टल में जाएँ</span>
+                        <span id="portalNavText">एडमिन पैनल</span>
                     </a>
                 </div>
 
@@ -74,9 +135,9 @@
         <div class="portal-gate-card">
             <div class="portal-gate-header">
                 <div class="portal-gate-logo-wrapper">
-                    <img src="/assets/logo.png" alt="मतदाता सेवा लोगो" class="portal-gate-logo">
+                    <img src="/assets/logo.png" alt="पंचायत वोटर सेवा लोगो" class="portal-gate-logo">
                 </div>
-                <h2 class="portal-gate-title">मतदाता सेवा — सुरक्षित लॉगिन</h2>
+                <h2 class="portal-gate-title">पंचायत मतदाता सेवा — सुरक्षित लॉगिन</h2>
                 <p class="portal-gate-subtitle">पोर्टल का उपयोग करने के लिए कृपया अपनी यूजर आईडी व पासवर्ड से लॉगिन करें।</p>
             </div>
             <form id="portalGateForm" class="portal-gate-form">
@@ -95,7 +156,7 @@
                     </div>
                 </div>
                 <div id="gateLoginError" class="gate-error-alert" style="display: none;"></div>
-                <button type="submit" class="btn-primary-gate" id="gateSubmitBtn">
+                <button type="submit" class="btn-primary-gate" id="gateSubmitBtn" style="background: #4338CA;">
                     <i data-lucide="log-in" style="width: 18px; height: 18px;"></i>
                     <span>लॉगिन करें</span>
                 </button>
@@ -107,12 +168,12 @@
     <main class="portal-container" id="portalMainApp" style="display: none;">
 
         <!-- Hero Section -->
-        <section class="hero-box">
+        <section class="hero-box hero-panchayat-gradient">
             <div class="hero-badge">
-                <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> आधिकारिक मतदाता सूची सेवा
+                <i data-lucide="building-2" style="width: 14px; height: 14px;"></i> राज्य निर्वाचन आयोग (SEC UP) समर्थित डेटाबेस
             </div>
-            <h2 class="hero-title">अपना नाम या मतदाता पर्ची खोजें</h2>
-            <p class="hero-subtitle">नाम, पिता/पति का नाम, पहचान पत्र क्रमांक (EPIC) या मतदान केंद्र अनुसार खोजें और तुरंत मतदाता सूचना पर्ची प्राप्त करें।</p>
+            <h2 class="hero-title">पंचायत व निकाय मतदाता खोज एवं डिजिटल पर्ची</h2>
+            <p class="hero-subtitle">ग्राम पंचायत अथवा स्थानीय निकाय के मतदाता का नाम, पिता/पति का नाम, वार्ड, भाग संख्या या मकान संख्या से खोजें और आधिकारिक मतदाता सूचना पर्ची डाउनलोड/प्रिंट करें।</p>
         </section>
 
         <!-- Search Card -->
@@ -121,9 +182,9 @@
             <div class="main-search-bar">
                 <div class="search-input-wrapper">
                     <i data-lucide="search" class="search-input-icon"></i>
-                    <input type="text" id="mainSearchInput" class="main-search-input" placeholder="मतदाता का नाम, पिता/पति का नाम, या EPIC पहचान पत्र लिखें..." autocomplete="off">
+                    <input type="text" id="mainSearchInput" class="main-search-input" placeholder="मतदाता का नाम, पिता/पति का नाम, या मकान संख्या लिखें..." autocomplete="off">
                 </div>
-                <button id="searchBtn" class="btn-primary-search">
+                <button id="searchBtn" class="btn-primary-search" style="background: #4338CA;">
                     <i data-lucide="search" style="width: 18px; height: 18px;"></i> खोजें
                 </button>
             </div>
@@ -134,36 +195,41 @@
                     <i data-lucide="sliders-horizontal" style="width: 16px; height: 16px;"></i> विस्तृत फ़िल्टर
                 </button>
                 <div class="quick-stats-pills">
-                    <div class="stat-pill">कुल मतदाता: <strong id="statTotalVoters">--</strong></div>
-                    <div class="stat-pill">कुल भाग (बूथ): <strong id="statTotalParts">--</strong></div>
+                    <div class="stat-pill">कुल पंचायत मतदाता: <strong id="statTotalVoters">--</strong></div>
+                    <div class="stat-pill">कुल निकाय / पंचायत: <strong id="statTotalBodies">--</strong></div>
+                    <div class="stat-pill">कुल वार्ड: <strong id="statTotalWards">--</strong></div>
                 </div>
             </div>
 
             <!-- Advanced Filter Panel (Hidden by default) -->
             <div id="advancedPanel" class="advanced-filters-panel" style="display: none;">
-                <div class="advanced-filter-alert-banner" style="grid-column: 1 / -1;">
-                    <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0; stroke: #ea580c;"></i>
-                    <span><strong>अनिवार्य नियम:</strong> विस्तृत फ़िल्टर में खोजने के लिए कम से कम <strong>मतदाता का नाम</strong>, <strong>पिता/पति का नाम</strong> अथवा <strong>EPIC No</strong> में से कोई एक विवरण भरना आवश्यक है।</span>
+                <div class="filter-field">
+                    <label for="filterBody">निकाय / पंचायत का नाम</label>
+                    <select id="filterBody" style="width: 100%;">
+                        <option value="">सभी निकाय / पंचायत</option>
+                    </select>
                 </div>
                 <div class="filter-field">
-                    <label for="filterName">मतदाता का नाम (Name) <span class="filter-req-badge">* अनिवार्य (कम से कम एक)</span></label>
+                    <label for="filterWard">वार्ड सं०</label>
+                    <select id="filterWard" style="width: 100%;">
+                        <option value="">सभी वार्ड</option>
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label for="filterPart">भाग संख्या (Part No)</label>
+                    <input type="text" id="filterPart" placeholder="उदा. 19">
+                </div>
+                <div class="filter-field">
+                    <label for="filterName">मतदाता का नाम (Name)</label>
                     <input type="text" id="filterName" placeholder="उदा. सुरेश कुमार">
                 </div>
                 <div class="filter-field">
-                    <label for="filterRelName">पिता / पति का नाम <span class="filter-req-badge">* अनिवार्य (कम से कम एक)</span></label>
+                    <label for="filterRelName">पिता / पति का नाम</label>
                     <input type="text" id="filterRelName" placeholder="उदा. रामगोपाल">
                 </div>
                 <div class="filter-field">
-                    <label for="filterEpic">पहचान पत्र क्रमांक (EPIC No) <span class="filter-req-badge">* अनिवार्य (कम से कम एक)</span></label>
-                    <input type="text" id="filterEpic" placeholder="उदा. YOM1234567">
-                </div>
-                <div class="filter-field">
-                    <label for="filterPart">भाग संख्या (बूथ नं०)</label>
-                    <input type="text" id="filterPart" placeholder="उदा. 235">
-                </div>
-                <div class="filter-field">
-                    <label for="filterAssembly">विधानसभा क्षेत्र</label>
-                    <input type="text" id="filterAssembly" placeholder="उदा. गुन्नौर">
+                    <label for="filterMohalla">सम्बद्ध मोहल्ला</label>
+                    <input type="text" id="filterMohalla" placeholder="उदा. साहूकारा">
                 </div>
                 <div class="filter-field">
                     <label for="filterHouse">मकान नं०</label>
@@ -173,9 +239,9 @@
                     <label for="filterGender">लिंग (Gender)</label>
                     <select id="filterGender">
                         <option value="all">सभी लिंग</option>
-                        <option value="पुरुष">केवल पुरुष</option>
-                        <option value="महिला">केवल महिला</option>
-                        <option value="अन्य">अन्य</option>
+                        <option value="M">केवल पुरुष</option>
+                        <option value="F">केवल महिला</option>
+                        <option value="O">अन्य</option>
                     </select>
                 </div>
                 <div class="filter-field" style="display: flex; flex-direction: row; gap: 8px;">
@@ -189,9 +255,12 @@
                     </div>
                 </div>
 
-                <div class="filter-actions">
+                <div class="filter-actions" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                     <button id="resetFiltersBtn" class="btn-secondary">
                         <i data-lucide="rotate-ccw" style="width: 14px; height: 14px; display: inline;"></i> फ़िल्टर साफ़ करें
+                    </button>
+                    <button id="exportExcelBtn" class="btn-primary" style="background: #059669; border: none; padding: 10px 16px; border-radius: 8px; color: white; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.88rem; font-weight: 600;">
+                        <i data-lucide="file-spreadsheet" style="width: 16px; height: 16px;"></i> एक्सेल डाउनलोड (.xlsx)
                     </button>
                 </div>
             </div>
@@ -199,8 +268,9 @@
 
         <!-- Search Results Section -->
         <section class="results-section">
-            <div class="results-header-bar">
-                <h3 id="resultsTitle" class="results-count-title">मतदाता खोज परिणाम</h3>
+            <div class="results-header-bar" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <h3 id="resultsTitle" class="results-count-title">पंचायत मतदाता खोज परिणाम</h3>
+                <span id="resultsFilterTag" style="font-size: 0.82rem; color: #4338CA; background: #EEF2FF; padding: 4px 10px; border-radius: 12px; font-weight: 600; display: none;"></span>
             </div>
 
             <!-- Desktop View: Clean Table -->
@@ -208,14 +278,17 @@
                 <table class="voter-search-table">
                     <thead>
                         <tr>
-                            <th style="width: 80px;">क्रम सं०</th>
+                            <th style="width: 60px;">क्र०</th>
+                            <th>निकाय / पंचायत</th>
+                            <th style="text-align: center; width: 75px;">वार्ड</th>
+                            <th style="text-align: center; width: 65px;">भाग सं०</th>
                             <th>मतदाता का नाम</th>
                             <th>सम्बन्धी का नाम</th>
-                            <th style="text-align: center; width: 90px;">मकान नं०</th>
-                            <th style="text-align: center; width: 70px;">आयु</th>
-                            <th style="text-align: center; width: 80px;">लिंग</th>
-                            <th style="text-align: center;">पहचान पत्र (EPIC)</th>
-                            <th style="text-align: center; width: 140px;">मतदाता पर्ची</th>
+                            <th style="text-align: center; width: 85px;">मकान नं०</th>
+                            <th style="text-align: center; width: 65px;">आयु</th>
+                            <th style="text-align: center; width: 75px;">लिंग</th>
+                            <th style="text-align: center; width: 140px;">मतदान स्थल व कक्ष</th>
+                            <th style="text-align: center; width: 125px;">मतदाता पर्ची</th>
                         </tr>
                     </thead>
                     <tbody id="desktopTableBody">
@@ -250,7 +323,7 @@
 
     <!-- Footer -->
     <footer class="portal-footer">
-        <p>© 2026 मतदाता सेवा • नागरिक सहायता एवं सुगम मतदान हेतु</p>
+        <p>© 2026 पंचायत एवं स्थानीय निकाय मतदाता सेवा • राज्य निर्वाचन आयोग (SEC UP) डेटा प्रारूप</p>
     </footer>
 
     <!-- ==================================================================== -->
@@ -259,22 +332,29 @@
     <div id="slipModal" class="slip-modal-overlay">
         <div class="slip-modal-content">
             
-            <!-- Authentic EC Style Voter Slip Paper -->
+            <!-- Authentic SEC UP Style Voter Slip Paper -->
             <div class="official-slip-paper">
-                <div class="slip-header-ec">
-                    <div class="ec-logo-text">🇮🇳 निर्वाचन नामावली / ELECTION ROLL</div>
-                    <div class="slip-title-main">मतदाता सूचना पर्ची</div>
-                    <div class="slip-subtitle">VOTER INFORMATION SLIP</div>
+                <div class="slip-header-panchayat">
+                    <div style="font-size: 0.8rem; font-weight: 700; color: #4338CA; letter-spacing: 0.05em;">
+                        🏛️ राज्य निर्वाचन आयोग, उत्तर प्रदेश / STATE ELECTION COMMISSION UP
+                    </div>
+                    <div class="slip-title-panchayat">मतदाता सूचना पर्ची</div>
+                    <div style="font-size: 0.78rem; font-weight: 600; color: #64748B;">
+                        स्थानीय निकाय / ग्राम पंचायत निर्वाचन नामावली
+                    </div>
                 </div>
 
-                <div class="slip-serial-highlight">
+                <div class="slip-serial-highlight" style="border-left: 4px solid #4338CA;">
                     <div>
-                        <div class="slip-label">विधानसभा निर्वाचन क्षेत्र</div>
-                        <div id="slipAssembly" class="slip-value" style="color: #1e3a8a;">--</div>
-                        <div id="slipPartNo" style="font-size: 0.8rem; font-weight: 700; color: #64748b; margin-top: 2px;">--</div>
+                        <div class="slip-label">निकाय / ग्राम पंचायत का नाम</div>
+                        <div id="slipBodyName" class="slip-value" style="color: #312E81; font-weight: 800;">--</div>
+                        <div style="display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap;">
+                            <span id="slipWardNo" style="font-size: 0.82rem; font-weight: 700; color: #4338CA; background: #EEF2FF; padding: 2px 8px; border-radius: 4px;">वार्ड: --</span>
+                            <span id="slipPartNo" style="font-size: 0.82rem; font-weight: 700; color: #334155; background: #F1F5F9; padding: 2px 8px; border-radius: 4px;">भाग नं०: --</span>
+                        </div>
                     </div>
-                    <div class="serial-number-box">
-                        <span>क्रम संख्या (SERIAL NO.)</span>
+                    <div class="serial-number-box" style="background: linear-gradient(135deg, #1E1B4B 0%, #4338CA 100%);">
+                        <span>क्रम संख्या (SERIAL)</span>
                         <span id="slipSerial">--</span>
                     </div>
                 </div>
@@ -282,15 +362,15 @@
                 <div class="slip-details-grid">
                     <div class="slip-detail-item">
                         <span class="slip-label">मतदाता का नाम (NAME)</span>
-                        <span id="slipName" class="slip-value">--</span>
+                        <span id="slipName" class="slip-value" style="font-weight: 800;">--</span>
                     </div>
                     <div class="slip-detail-item">
                         <span id="slipRelType" class="slip-label">पिता/पति का नाम</span>
                         <span id="slipRelName" class="slip-value">--</span>
                     </div>
                     <div class="slip-detail-item">
-                        <span class="slip-label">पहचान पत्र क्रमांक (EPIC NO.)</span>
-                        <span id="slipEpic" class="slip-value" style="font-family: monospace; letter-spacing: 0.05em; color: #1e3a8a;">--</span>
+                        <span class="slip-label">भाग संख्या (PART NO.)</span>
+                        <span id="slipPartNoDetail" class="slip-value" style="font-weight: 800; color: #4338CA;">--</span>
                     </div>
                     <div class="slip-detail-item">
                         <span class="slip-label">लिंग / आयु (GENDER / AGE)</span>
@@ -300,14 +380,18 @@
                         <span class="slip-label">मकान संख्या (HOUSE NO.)</span>
                         <span id="slipHouse" class="slip-value">--</span>
                     </div>
+                    <div class="slip-detail-item">
+                        <span class="slip-label">सम्बद्ध मोहल्ला</span>
+                        <span id="slipMohalla" class="slip-value" style="color: #334155;">--</span>
+                    </div>
                     <div class="slip-detail-item full-width">
-                        <span class="slip-label">मतदान स्थल का नाम व भवन (POLLING STATION)</span>
-                        <span id="slipStation" class="slip-value" style="color: #b45309; font-size: 0.9rem;">--</span>
+                        <span class="slip-label">मतदान केंद्र व स्थल / भवन (POLLING STATION & BOOTH)</span>
+                        <span id="slipStation" class="slip-value" style="color: #92400E; font-size: 0.92rem; font-weight: 700;">--</span>
                     </div>
                 </div>
 
-                <div class="slip-disclaimer">
-                    ⚠️ <strong>नोट:</strong> यह पर्ची मतदान केंद्र व क्रम संख्या की जानकारी हेतु है। मतदान के समय मतदाता फोटो पहचान पत्र (EPIC) अथवा मान्य सरकारी पहचान पत्र अवश्य साथ लाएं।
+                <div class="slip-disclaimer" style="border-left: 3px solid #4338CA; background: #EEF2FF; color: #312E81;">
+                    ⚠️ <strong>नोट:</strong> यह पर्ची केवल मतदाता की पहचान, वार्ड, भाग व क्रम संख्या की सुविधा हेतु है। मतदान के समय मान्य पहचान पत्र (EPIC/आधार/ड्राइविंग लाइसेंस आदि) साथ लाएं।
                 </div>
             </div>
 
@@ -317,7 +401,7 @@
                     <i data-lucide="share-2" style="width: 16px; height: 16px;"></i> WhatsApp पर भेजें
                 </button>
                 <div style="display: flex; gap: 8px;">
-                    <button id="slipPrintBtn" class="btn-slip-print">
+                    <button id="slipPrintBtn" class="btn-slip-print" style="background: #4338CA;">
                         <i data-lucide="printer" style="width: 16px; height: 16px;"></i> पर्ची प्रिंट करें
                     </button>
                     <button id="slipCloseBtn" class="btn-slip-close">
@@ -329,13 +413,11 @@
         </div>
     </div>
 
-
-
     <!-- Self-Service Change Password Modal -->
     <div class="modal-backdrop" id="changeMyPwdModal" style="display: none;">
         <div class="modal-card" style="max-width: 420px; width: 92%;">
             <div class="modal-header">
-                <div class="modal-title" style="color: var(--primary);">
+                <div class="modal-title" style="color: #4338CA;">
                     <i data-lucide="key-round"></i>
                     <h3>अपना पासवर्ड बदलें</h3>
                 </div>
@@ -358,7 +440,7 @@
                     <div id="changePwdError" style="display: none; padding: 10px; border-radius: 8px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #DC2626; font-size: 0.82rem; margin-bottom: 14px;"></div>
                     <div class="modal-footer">
                         <button type="button" class="btn-outline" id="cancelChangeMyPwdBtn">रद्द करें</button>
-                        <button type="submit" class="btn-primary">
+                        <button type="submit" class="btn-primary" style="background: #4338CA;">
                             <i data-lucide="check"></i> पासवर्ड सुरक्षित करें
                         </button>
                     </div>
@@ -367,8 +449,10 @@
         </div>
     </div>
 
-    <!-- Script -->
-    <script src="/js/search.js"></script>
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px;"></div>
 
+    <!-- Script -->
+    <script src="/js/panchayat-search.js?v=1.0"></script>
 </body>
 </html>

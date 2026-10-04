@@ -100,6 +100,9 @@ class VoterDatabase:
 
             # NPPropertyServey voter mapping table
             cls._ensure_mapping_table(conn)
+
+            # Panchayat & Nikay voter table
+            cls._ensure_panchayat_table(conn)
             
         cls._initialized = True
 
@@ -152,6 +155,48 @@ class VoterDatabase:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_svm_fam_mem ON survey_voter_mappings(family_id, member_id);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_svm_voter_id ON survey_voter_mappings(voter_id);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_svm_family_id ON survey_voter_mappings(family_id);")
+        conn.commit()
+
+    @classmethod
+    def _ensure_panchayat_table(cls, conn: sqlite3.Connection):
+        """Ensures the panchayat_voters table and performance indexes exist."""
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS panchayat_voters (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                body_type TEXT DEFAULT 'gram_panchayat',
+                body_name TEXT,
+                ward_no TEXT,
+                ward_name TEXT,
+                serial_no INTEGER,
+                name TEXT NOT NULL,
+                relation_type TEXT DEFAULT 'पिता',
+                relation_name TEXT,
+                house_no TEXT,
+                age INTEGER,
+                gender TEXT DEFAULT 'पुरुष',
+                epic_no TEXT,
+                polling_station TEXT,
+                section_no TEXT,
+                page_no INTEGER,
+                source_file TEXT,
+                created_at TEXT,
+                updated_at TEXT,
+                name_normalized TEXT,
+                name_phonetic TEXT,
+                rel_normalized TEXT,
+                rel_phonetic TEXT,
+                is_deleted INTEGER DEFAULT 0,
+                deleted_reason TEXT
+            );
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pv_name ON panchayat_voters(name);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pv_rel_name ON panchayat_voters(relation_name);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pv_epic ON panchayat_voters(epic_no);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pv_body_ward ON panchayat_voters(body_name, ward_no);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pv_name_norm ON panchayat_voters(name_normalized);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pv_name_phon ON panchayat_voters(name_phonetic);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pv_rel_norm ON panchayat_voters(rel_normalized);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pv_rel_phon ON panchayat_voters(rel_phonetic);")
         conn.commit()
 
     @classmethod
@@ -1969,78 +2014,216 @@ class VoterDatabase:
     @classmethod
     def search_voter_candidate(
         cls,
-        q: str,
+        q: Optional[str] = None,
+        name: Optional[str] = None,
+        relation_name: Optional[str] = None,
+        epic_no: Optional[str] = None,
+        house_no: Optional[str] = None,
         part_no: Optional[str] = None,
-        limit: int = 30,
+        gender: Optional[str] = None,
+        min_age: Optional[int] = None,
+        max_age: Optional[int] = None,
+        limit: int = 40,
         db_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        High-speed candidate search across the voter database for manual mapping.
-        Matches against EPIC, Name, Relative Name, or House No.
+        High-precision candidate search across the voter database for manual mapping.
+        Uses the EXACT same multi-criteria AI search engine as the main page's online search:
+        - expand_search_query (English-to-Hindi transliteration + dictionary variations)
+        - Devanagari normalization (vowels, matras, sound-alike consonants)
+        - Unified Phonetic Soundex keys (name_phonetic & rel_phonetic)
+        - Targeted field filters (name, relation_name, epic_no, house_no, part_no, gender, age)
+        - Smart relevance ranking & match tags (Exact EPIC, Exact Name, AI Normalized, AI Soundex, etc.)
         """
         if not cls._initialized:
             cls.init_db(db_id=db_id)
-        clean_q = (q or "").strip()
-        if not clean_q:
+
+        clean_q = (q if isinstance(q, str) else "").strip()
+        clean_name = (name if isinstance(name, str) else "").strip()
+        clean_rel = (relation_name if isinstance(relation_name, str) else "").strip()
+        clean_epic = (epic_no if isinstance(epic_no, str) else "").strip()
+        clean_house = (house_no if isinstance(house_no, str) else "").strip()
+        clean_part = (str(part_no).strip() if isinstance(part_no, (str, int)) else "")
+        has_part = bool(clean_part and clean_part.upper() not in ("ALL", "ANY", "-- समस्त भाग --", "-- समस्त भाग (ALL PARTS) --"))
+        clean_gender = (gender if isinstance(gender, str) else "").strip()
+        has_gender = bool(clean_gender and clean_gender.lower() not in ("all", "any", "सभी", "समस्त"))
+        min_age_clean = min_age if isinstance(min_age, int) else None
+        max_age_clean = max_age if isinstance(max_age, int) else None
+        limit_clean = limit if isinstance(limit, int) else 40
+
+        # If no criteria provided at all, return empty
+        if not (clean_q or clean_name or clean_rel or clean_epic or clean_house or has_part or has_gender or min_age_clean or max_age_clean):
             return []
 
-        # Detect Latin/English characters and transliterate
-        if re.search(r'[a-zA-Z]', clean_q):
-            from .ai_search import transliterate_latin_to_hindi
-            trans_q = transliterate_latin_to_hindi(clean_q)
-        else:
-            trans_q = clean_q
+        where_clauses = ["(v.is_deleted = 0 OR v.is_deleted IS NULL)"]
+        params: List[Any] = []
 
-        norm_q = clean_and_normalize_name(trans_q)
-        like_pat = f"%{norm_q}%"
-        raw_like = f"%{clean_q}%"
+        # 1. Universal keyword search (q) with full Local AI tolerance - EXACTLY like main page online search
+        if clean_q:
+            q_exp = expand_search_query(clean_q)
+            q_conds = []
 
-        norm_part = str(part_no or "").strip()
-        has_part = bool(norm_part and norm_part.upper() not in ("ALL", "ANY", "-- समस्त भाग --"))
+            # Exact variants across name and relation_name (including transliteration)
+            for v in q_exp["exact_variants"]:
+                q_conds.append("v.name LIKE ?")
+                params.append(f"%{v}%")
+                q_conds.append("v.relation_name LIKE ?")
+                params.append(f"%{v}%")
+
+            # Normalized Devanagari variants
+            for v in q_exp["normalized_variants"]:
+                q_conds.append("v.name_normalized LIKE ?")
+                params.append(f"%{v}%")
+                q_conds.append("v.rel_normalized LIKE ?")
+                params.append(f"%{v}%")
+
+            # Phonetic Soundex keys
+            if q_exp["phonetic_key"]:
+                q_conds.append("v.name_phonetic LIKE ?")
+                params.append(f"%{q_exp['phonetic_key']}%")
+                q_conds.append("v.rel_phonetic LIKE ?")
+                params.append(f"%{q_exp['phonetic_key']}%")
+
+            # Standard fields: epic_no, house_no, polling_station, part_no
+            q_conds.append("UPPER(v.epic_no) LIKE ?")
+            params.append(f"%{clean_q.upper()}%")
+            q_conds.append("v.house_no LIKE ?")
+            params.append(f"%{clean_q}%")
+            q_conds.append("v.polling_station LIKE ?")
+            params.append(f"%{clean_q}%")
+            q_conds.append("v.part_no LIKE ?")
+            params.append(f"%{clean_q}%")
+            if clean_q.isdigit():
+                q_conds.append("v.serial_no = ?")
+                params.append(int(clean_q))
+
+            where_clauses.append(f"({' OR '.join(q_conds)})")
+
+        # 2. Field-specific filters with Local AI tolerance - EXACTLY like main page online search
+        if clean_name:
+            name_exp = expand_search_query(clean_name)
+            name_conds = []
+            for v in name_exp["exact_variants"]:
+                name_conds.append("v.name LIKE ?")
+                params.append(f"%{v}%")
+            for v in name_exp["normalized_variants"]:
+                name_conds.append("v.name_normalized LIKE ?")
+                params.append(f"%{v}%")
+            if name_exp["phonetic_key"]:
+                name_conds.append("v.name_phonetic LIKE ?")
+                params.append(f"%{name_exp['phonetic_key']}%")
+            if name_conds:
+                where_clauses.append(f"({' OR '.join(name_conds)})")
+
+        if clean_rel:
+            rel_exp = expand_search_query(clean_rel)
+            rel_conds = []
+            for v in rel_exp["exact_variants"]:
+                rel_conds.append("v.relation_name LIKE ?")
+                params.append(f"%{v}%")
+            for v in rel_exp["normalized_variants"]:
+                rel_conds.append("v.rel_normalized LIKE ?")
+                params.append(f"%{v}%")
+            if rel_exp["phonetic_key"]:
+                rel_conds.append("v.rel_phonetic LIKE ?")
+                params.append(f"%{rel_exp['phonetic_key']}%")
+            if rel_conds:
+                where_clauses.append(f"({' OR '.join(rel_conds)})")
+
+        if clean_epic:
+            where_clauses.append("UPPER(v.epic_no) LIKE ?")
+            params.append(f"%{clean_epic.upper()}%")
+
+        if has_part:
+            where_clauses.append("v.part_no = ?")
+            params.append(clean_part)
+
+        if clean_house:
+            where_clauses.append("v.house_no LIKE ?")
+            params.append(f"%{clean_house}%")
+
+        if has_gender:
+            where_clauses.append("v.gender = ?")
+            params.append(clean_gender)
+
+        if min_age_clean is not None and min_age_clean > 0:
+            where_clauses.append("v.age >= ?")
+            params.append(min_age_clean)
+
+        if max_age_clean is not None and max_age_clean > 0:
+            where_clauses.append("v.age <= ?")
+            params.append(max_age_clean)
+
+        # Smart relevance ordering - EXACTLY like main page online search
+        sort_term = clean_q or clean_name or clean_epic
+        order_clause = "CAST(v.part_no AS INTEGER) ASC, CAST(v.serial_no AS INTEGER) ASC"
+        order_params: List[Any] = []
+        if sort_term:
+            sort_norm = normalize_devanagari(sort_term)
+            sort_phon = get_phonetic_key(sort_term)
+            order_clause = f"""
+                CASE
+                    WHEN UPPER(v.epic_no) = ? THEN 1
+                    WHEN v.name LIKE ? THEN 2
+                    WHEN v.name_normalized LIKE ? THEN 3
+                    WHEN v.name_phonetic LIKE ? THEN 4
+                    WHEN UPPER(v.epic_no) LIKE ? THEN 5
+                    ELSE 6
+                END ASC, CAST(v.part_no AS INTEGER) ASC, CAST(v.serial_no AS INTEGER) ASC
+            """
+            order_params = [
+                sort_term.upper(),
+                f"%{sort_term}%",
+                f"%{sort_norm}%",
+                f"%{sort_phon}%",
+                f"%{sort_term.upper()}%"
+            ]
 
         with cls.get_connection(db_id=db_id, purpose="read") as conn:
             cls._ensure_mapping_table(conn)
             cursor = conn.cursor()
 
-            sql = """
+            sql = f"""
                 SELECT v.id, v.serial_no, v.part_no, v.name, v.relation_type, v.relation_name,
                        v.house_no, v.age, v.gender, v.epic_no, v.caste_key, v.caste_source, v.caste_reason,
-                       v.is_muslim,
+                       v.is_muslim, v.name_normalized, v.name_phonetic, v.rel_normalized, v.rel_phonetic,
                        m.id as mapping_id, m.family_id, m.member_id, m.member_name as mapped_member_name
                 FROM voters v
                 LEFT JOIN survey_voter_mappings m ON v.id = m.voter_id
-                WHERE (v.is_deleted = 0 OR v.is_deleted IS NULL)
-                  AND (
-                      v.name LIKE ?
-                      OR v.relation_name LIKE ?
-                      OR v.epic_no LIKE ?
-                      OR v.house_no = ?
-                      OR v.serial_no = ?
-                  )
-            """
-            params: List[Any] = [like_pat, like_pat, raw_like, clean_q, clean_q if clean_q.isdigit() else -1]
-            if has_part:
-                sql += " AND v.part_no = ?"
-                params.append(norm_part)
-
-            sql += """
-                ORDER BY
-                  CASE WHEN v.epic_no = ? THEN 1
-                       WHEN v.name = ? THEN 2
-                       WHEN v.name LIKE ? THEN 3
-                       ELSE 4
-                  END,
-                  CAST(v.part_no AS INTEGER),
-                  CAST(v.serial_no AS INTEGER)
+                WHERE {' AND '.join(where_clauses)}
+                ORDER BY {order_clause}
                 LIMIT ?;
             """
-            params.extend([clean_q.upper(), norm_q, like_pat, limit])
-
-            cursor.execute(sql, params)
+            cursor.execute(sql, params + order_params + [limit_clean])
             res = []
             for r in cursor.fetchall():
                 d = dict(r)
                 d["is_mapped"] = bool(d.get("mapping_id"))
+
+                # Determine AI match tag
+                r_name = d.get("name") or ""
+                r_epic = d.get("epic_no") or ""
+                r_house = d.get("house_no") or ""
+                r_norm = d.get("name_normalized") or ""
+                r_phon = d.get("name_phonetic") or ""
+
+                if sort_term:
+                    st_up = sort_term.upper()
+                    if st_up and st_up in r_epic.upper():
+                        d["match_tag"] = "🎯 सटीक EPIC"
+                    elif sort_term in r_name:
+                        d["match_tag"] = "✨ सटीक नाम"
+                    elif sort_norm and sort_norm in r_norm:
+                        d["match_tag"] = "📝 AI सामान्यीकृत"
+                    elif sort_phon and sort_phon in r_phon:
+                        d["match_tag"] = "🤖 AI ध्वन्यात्मक (Soundex)"
+                    elif sort_term == r_house:
+                        d["match_tag"] = "🏠 मकान नं० मैच"
+                    else:
+                        d["match_tag"] = "🔍 विस्तृत मैच"
+                else:
+                    d["match_tag"] = "🔍 फ़िल्टर मैच"
+
                 res.append(d)
             return res
 

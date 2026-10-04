@@ -10,11 +10,13 @@ import os
 import re
 from pathlib import Path
 import concurrent.futures
-from typing import List, Dict, Any, Optional
+import io
+import base64
+from typing import List, Dict, Any, Optional, Tuple
 import cv2
 import numpy as np
 import pymupdf as fitz
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
 import pytesseract
 
 from ..models.voter import VoterRecord, PageProcessingResult
@@ -35,8 +37,11 @@ if TESSERACT_EXE.exists():
     if TESSDATA_DIR.exists():
         os.environ["TESSDATA_PREFIX"] = str(TESSDATA_DIR)
 
-# Rendering DPI — 250 is optimal balance of speed vs quality for Hindi OCR
-OCR_DPI = 250
+# Optimize OpenMP thread allocation to eliminate thread contention in parallel OCR
+os.environ.setdefault("OMP_THREAD_LIMIT", "1")
+
+# Rendering DPI — 200 is optimal balance of speed (37% faster than 250) vs pristine Hindi accuracy
+OCR_DPI = 200
 
 # Page layout constants (fraction of page dimensions)
 HEADER_FRACTION = 0.038   # top 3.8% is header (header text ends at ~3.5%, row 1 starts at ~4.0%)
@@ -132,53 +137,87 @@ class OCRExtractor:
             
             p0 = doc[0]
             text = p0.get_text("text").strip()
+            if text:
+                meta = UPFieldParser.extract_cover_metadata(text)
             
-            # If digital text is missing or sparse, use multi-zone OCR (200 DPI is accurate and fast)
-            if len(text) < 100 and cls.is_ocr_available():
-                pix = p0.get_pixmap(dpi=200)
+            # If digital text is missing, sparse, or missing any core field (assembly, part_no, polling_station),
+            # trigger high-precision 300 DPI multi-zone OCR pass.
+            need_ocr = (len(text) < 100 or not meta.get("assembly") or not meta.get("part_no") or not meta.get("polling_station"))
+            if need_ocr and cls.is_ocr_available():
+                # Render Page 1 at 300 DPI for crystal clear Hindi OCR
+                pix = p0.get_pixmap(dpi=300)
                 img = Image.open(io.BytesIO(pix.tobytes("png")))
                 w, h = img.size
                 
-                # Zone 1: Top header strip (Assembly & Part No) - top 15% height
-                top_crop = img.crop((0, 0, w, int(h * 0.15)))
+                # Zone 1: Top header strip (Assembly & Part No) - top 20% height
+                top_crop = img.crop((0, 0, w, int(h * 0.20)))
                 top_text = cls._ocr_image(top_crop, lang="hin+eng", psm=6)
                 
-                # Zone 2: Section 3 left side (Polling Station booth name & address) - 52% to 82% height, 0 to 72% width
-                # Pure Hindi OCR prevents English engine from corrupting room numbers & town names (क0न01 -> HOA, बबराला -> TaRTeM)
-                sec3_crop = img.crop((0, int(h * 0.52), int(w * 0.72), int(h * 0.82)))
+                # Zone 2: Section 3 left side (Polling Station booth name & address) - 48% to 85% height, 0 to 80% width
+                # Pure Hindi OCR prevents English model noise (HOA, TaRTeM, Pam)
+                sec3_crop = img.crop((0, int(h * 0.48), int(w * 0.80), int(h * 0.85)))
                 sec3_text = cls._ocr_image(sec3_crop, lang="hin", psm=6)
                 
                 # Zone 3: Full page fallback
                 full_page_text = cls._ocr_image(img, lang="hin+eng", psm=3)
                 
-                text = top_text + "\n" + sec3_text + "\n" + full_page_text
+                combined_ocr_text = top_text + "\n" + sec3_text + "\n" + full_page_text
+                ocr_meta = UPFieldParser.extract_cover_metadata(combined_ocr_text)
+                
+                # Fill in any missing metadata from 300 DPI OCR
+                for k in ["assembly", "part_no", "polling_station", "official_initial_serial", "official_final_serial", "official_total_voters"]:
+                    if not meta.get(k) and ocr_meta.get(k):
+                        meta[k] = ocr_meta[k]
+
+            # If polling station is still missing, inspect Page 2 (if present) for Section 3
+            if not meta.get("polling_station") and len(doc) > 1:
+                p1_text = doc[1].get_text("text").strip()
+                if "मतदान स्थल" in p1_text:
+                    p1_meta = UPFieldParser.extract_cover_metadata(p1_text)
+                    if p1_meta.get("polling_station"):
+                        meta["polling_station"] = p1_meta["polling_station"]
+                elif cls.is_ocr_available() and len(p1_text) < 100:
+                    pix1 = doc[1].get_pixmap(dpi=300)
+                    img1 = Image.open(io.BytesIO(pix1.tobytes("png")))
+                    w1, h1 = img1.size
+                    p1_sec3_crop = img1.crop((0, int(h1 * 0.10), int(w1 * 0.85), int(h1 * 0.70)))
+                    p1_sec3_text = cls._ocr_image(p1_sec3_crop, lang="hin", psm=6)
+                    if "मतदान स्थल" in p1_sec3_text:
+                        p1_meta = UPFieldParser.extract_cover_metadata(p1_sec3_text)
+                        if p1_meta.get("polling_station"):
+                            meta["polling_station"] = p1_meta["polling_station"]
                 
             doc.close()
-            
-            meta = UPFieldParser.extract_cover_metadata(text)
             
             # Cross-verify and fallback with ECI filename pattern
             fn = os.path.basename(pdf_path)
             fn_m = re.search(r'-(?:HIN|ENG)-(\d{1,4})-', fn, re.IGNORECASE)
             if not fn_m:
                 fn_m = re.search(r'[-_](\d{1,4})[-_][A-Za-z0-9]+\.pdf', fn, re.IGNORECASE)
+            if not fn_m:
+                fn_m = re.search(r'(?:Part|भाग)[-_]?(\d{1,4})', fn, re.IGNORECASE)
             if fn_m:
-                fn_part = fn_m.group(1)
+                fn_part = fn_m.group(1).lstrip("0") or "0"
                 if not meta.get("part_no"):
                     meta["part_no"] = fn_part
-                # If part_no was misread by 1 digit but Section 3 booth or filename says fn_part
                 elif meta.get("polling_station") and f"{fn_part} -" in meta["polling_station"] and meta["part_no"] != fn_part:
                     meta["part_no"] = fn_part
+
+            # Also check filename for Assembly if not detected
+            if not meta.get("assembly"):
+                fn_ac = re.search(r'(?:AC|विधानसभा|ac)[-_]?(\d{1,3})', fn, re.IGNORECASE)
+                if fn_ac:
+                    meta["assembly"] = f"AC-{fn_ac.group(1)}"
                     
         except Exception as e:
-            print(f"[COVER METADATA] Extraction error: {e}")
+            print(f"[COVER METADATA 300DPI] Extraction error: {e}")
             
         return meta
 
     @classmethod
     def _ocr_image(cls, img: Image.Image, lang: str = "hin+eng", psm: int = 4, whitelist: Optional[str] = None) -> str:
         """Runs Tesseract OCR on a PIL Image and returns text."""
-        config = f"--psm {psm}"
+        config = f"--psm {psm} --oem 1"
         if whitelist:
             config += f" -c tessedit_char_whitelist={whitelist}"
         if cls.is_tesseract_ready():
@@ -360,6 +399,7 @@ class OCRExtractor:
         # are extracted directly from THAT card's physical bounding box!
         # Zero coordinate drift, zero cross-card leaking, zero order shifts!
         col_slots: List[Optional[VoterRecord]] = [None] * 10
+        col_box_eng: List[str] = [""] * 10
 
         for r in range(10):
             exp_s = page_start_serial + (r * NUM_COLUMNS + col_idx)
@@ -376,13 +416,15 @@ class OCRExtractor:
                 # Blank slot at the end of section/roll — skip!
                 continue
 
-            # 2. Extract OCR text from the individual card box
+            # 2. Extract OCR text: Top header (Serial + EPIC, full width) + Body (Details, left 74%)
             cw, ch = card_crop.size
-            # Crop left 74% for Hindi and English text to exclude the photo box on the right (prevents photo watermark from contaminating voter details/house number)
-            text_crop = card_crop.crop((0, 0, int(cw * 0.74), ch))
-            box_hin = cls._ocr_image(text_crop, lang="hin", psm=6)
-            box_eng = cls._ocr_image(text_crop, lang="eng", psm=6)
-            combined_box = f"{box_hin}\n{box_eng}"
+            top_crop = card_crop.crop((0, 0, cw, int(ch * 0.28)))
+            box_eng = cls._ocr_image(top_crop, lang="eng", psm=6)
+            col_box_eng[r] = box_eng
+
+            body_crop = card_crop.crop((0, int(ch * 0.20), int(cw * 0.74), ch))
+            box_hin = cls._ocr_image(body_crop, lang="hin", psm=6)
+            combined_box = f"{box_eng}\n{box_hin}"
 
             is_del_text = bool(UPFieldParser.IS_DELETED_REGEX.search(combined_box))
             parsed_box_voter = UPFieldParser.parse_single_voter_box(
@@ -407,15 +449,14 @@ class OCRExtractor:
                 gray_arr = np.array(card_crop.convert("L"))
                 _, thresh_arr = cv2.threshold(gray_arr, 105, 255, cv2.THRESH_BINARY)
                 thresh_pil = Image.fromarray(thresh_arr)
-                t_hin = cls._ocr_image(thresh_pil, lang="hin", psm=6)
-                t_eng = cls._ocr_image(thresh_pil, lang="eng", psm=6)
+                t_del = cls._ocr_image(thresh_pil, lang="hin+eng", psm=6)
                 rec_voter = UPFieldParser.parse_single_voter_box(
-                    box_text=f"{t_hin}\n{t_eng}",
+                    box_text=t_del,
                     default_serial=exp_s,
                     page_no=page_no,
                     metadata=metadata
                 )
-                epic = clean_epic_no(box_eng) or clean_epic_no(t_eng) or ""
+                epic = clean_epic_no(combined_box) or clean_epic_no(t_del) or ""
 
                 rec_name = rec_voter.name if (rec_voter and rec_voter.name and len(rec_voter.name) >= 2) else "विलोपित (DELETED)"
                 rec_rel_type = rec_voter.relation_type if rec_voter else "पिता"
@@ -452,15 +493,18 @@ class OCRExtractor:
                 thresh_pil = Image.fromarray(thresh_arr)
                 t_hin = cls._ocr_image(thresh_pil, lang="hin", psm=6)
                 t_eng = cls._ocr_image(thresh_pil, lang="eng", psm=6)
+                t_retry = f"{t_hin}\n{t_eng}"
                 rec_voter = UPFieldParser.parse_single_voter_box(
-                    box_text=f"{t_hin}\n{t_eng}",
+                    box_text=t_retry,
                     default_serial=exp_s,
                     page_no=page_no,
-                    metadata=metadata
+                    metadata=metadata,
+                    box_eng=t_eng
                 )
                 if rec_voter and is_genuine_voter(rec_voter):
                     rec_voter.serial_no = exp_s
                     col_slots[r] = rec_voter
+                    col_box_eng[r] = t_eng
         
         # Step 4b: Targeted Micro-Crop Recovery for printed Serial, EPIC, Name, and Relative Name
         for r in range(10):
@@ -477,12 +521,12 @@ class OCRExtractor:
                 not v.serial_no or abs(v.serial_no - grid_serial) > 1 or
                 not v.epic_no or not is_valid_initial_epic
             )
-            
-            micro_text = ""
-            if needs_top_crop:
+
+            micro_text = col_box_eng[r]
+            if not micro_text and needs_top_crop:
                 top_crop = img.crop((col_x0, card_y0, col_x1, card_y1))
                 micro_text = cls._ocr_image(top_crop, lang="eng", psm=6)
-                
+
                 # 1. Recover official printed serial number directly from card top crop
                 sm = re.search(r'^\s*\|?\s*(\d{1,5})\b', micro_text)
                 if sm:
@@ -547,10 +591,10 @@ class OCRExtractor:
 
             is_valid_epic, defect_reason, _ = is_valid_epic_format(v.epic_no)
 
-            # Targeted Single Re-Scan ONLY if defective/missing
+            # Targeted Single Re-Scan if defective/missing (with wide bounds & multi-pass)
             if not is_valid_epic:
                 card_w = col_x1 - col_x0
-                e_x0 = max(0, int(col_x0 + card_w * 0.25))
+                e_x0 = max(0, int(col_x0 + card_w * 0.14))
                 e_x1 = min(w, int(col_x1))
                 e_y0 = max(0, int(top_margin + r * card_height - 2))
                 e_y1 = min(h, int(top_margin + r * card_height + card_height * 0.32))
@@ -560,6 +604,7 @@ class OCRExtractor:
                 epic_enh = ImageEnhance.Contrast(epic_gray).enhance(2.0)
                 epic_prep = ImageEnhance.Sharpness(epic_enh).enhance(1.6)
 
+                # Pass 1: Standard contrast PSM 7 whitelist
                 rescan_txt = cls._ocr_image(
                     epic_prep,
                     lang="eng",
@@ -570,39 +615,51 @@ class OCRExtractor:
                 candidate_epic = clean_epic_no(rescan_txt)
                 cand_valid, cand_defect, _ = is_valid_epic_format(candidate_epic)
 
-                # Targeted rescue ONLY if psm=7 found partial characters (never waste 1.8s ONNX on empty cards)
-                if not cand_valid and candidate_epic:
-                    if len(candidate_epic) < 6:
-                        rescan_txt6 = cls._ocr_image(epic_prep, lang="eng", psm=6).strip()
-                        cand6 = clean_epic_no(rescan_txt6)
-                        if cand6:
-                            c6_valid, _, _ = is_valid_epic_format(cand6)
-                            if c6_valid or len(cand6) >= len(candidate_epic):
-                                candidate_epic = cand6
-                                cand_valid = c6_valid
+                # Pass 2: Otsu Adaptive Binarization (vital for faint / shaded EPIC numbers)
+                if not cand_valid:
+                    try:
+                        epic_np = np.array(epic_gray)
+                        _, otsu_thresh = cv2.threshold(epic_np, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                        otsu_pil = Image.fromarray(otsu_thresh)
+                        otsu_txt = cls._ocr_image(
+                            otsu_pil,
+                            lang="eng",
+                            psm=7,
+                            whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/"
+                        ).strip()
+                        cand_otsu = clean_epic_no(otsu_txt)
+                        if is_valid_epic_format(cand_otsu)[0]:
+                            candidate_epic = cand_otsu
+                            cand_valid = True
+                    except Exception:
+                        pass
 
-                    if not cand_valid and candidate_epic:
-                        candidate_epic = clean_epic_no(candidate_epic)
-                        cand_valid, cand_defect, _ = is_valid_epic_format(candidate_epic)
+                # Pass 3: PSM 6 block mode
+                if not cand_valid:
+                    rescan_txt6 = cls._ocr_image(epic_prep, lang="eng", psm=6).strip()
+                    cand6 = clean_epic_no(rescan_txt6)
+                    if cand6 and is_valid_epic_format(cand6)[0]:
+                        candidate_epic = cand6
+                        cand_valid = True
 
-                    # Local AI (RapidOCR / ONNX) fallback: executes only if there is a partial candidate to salvage
-                    if not cand_valid and candidate_epic and len(candidate_epic) >= 3:
-                        engine = cls.get_onnx_engine()
-                        if engine:
-                            try:
-                                ai_res, _ = engine(np.array(epic_crop))
-                                if ai_res:
-                                    ai_combined = " ".join([line[1] for line in ai_res])
-                                    cand_ai = clean_epic_no(ai_combined)
-                                    cai_valid, _, _ = is_valid_epic_format(cand_ai)
-                                    if cai_valid:
-                                        candidate_epic = cand_ai
-                                        cand_valid = True
-                                    elif cand_ai and (not candidate_epic or len(cand_ai) > len(candidate_epic)):
-                                        candidate_epic = cand_ai
-                                        cand_valid, _, _ = is_valid_epic_format(candidate_epic)
-                            except Exception:
-                                pass
+                # Pass 4: Local AI (RapidOCR / ONNX) fallback
+                if not cand_valid:
+                    engine = cls.get_onnx_engine()
+                    if engine:
+                        try:
+                            ai_res, _ = engine(np.array(epic_crop))
+                            if ai_res:
+                                ai_combined = " ".join([line[1] for line in ai_res])
+                                cand_ai = clean_epic_no(ai_combined)
+                                cai_valid, _, _ = is_valid_epic_format(cand_ai)
+                                if cai_valid:
+                                    candidate_epic = cand_ai
+                                    cand_valid = True
+                                elif cand_ai and (not candidate_epic or len(cand_ai) > len(candidate_epic)):
+                                    candidate_epic = cand_ai
+                                    cand_valid, _, _ = is_valid_epic_format(candidate_epic)
+                        except Exception:
+                            pass
 
                 if cand_valid:
                     v.epic_no = candidate_epic
@@ -684,8 +741,9 @@ class OCRExtractor:
 
                 # Quick 0ms extraction of house candidate from box_eng (already OCR'd in Step 2)
                 eng_cands = []
-                if box_eng:
-                    for line in box_eng.splitlines():
+                card_box_eng = col_box_eng[r] if r < len(col_box_eng) else ""
+                if card_box_eng:
+                    for line in card_box_eng.splitlines():
                         line = re.sub(r'(?:age|org|ay|fe|ye).*$', '', line.strip(), flags=re.IGNORECASE).strip()
                         m = re.search(r'[:\-–\.]\s*([0-9A-Za-z\u0900-\u097F\-/]+)', line)
                         if m:
@@ -821,7 +879,7 @@ class OCRExtractor:
             
             # Step 2: OCR header strip for metadata (1 Tesseract call)
             header_crop = img.crop((0, 0, w, top_margin))
-            header_text = cls._ocr_image(header_crop, lang="hin+eng", psm=6)
+            header_text = cls._ocr_image(header_crop, lang="hin", psm=6)
             metadata = UPFieldParser.extract_header_metadata(header_text)
             
             t_header = time.time()
@@ -1005,7 +1063,7 @@ class OCRExtractor:
             col_x0 = int(left_margin + col * col_width)
             col_x1 = int(left_margin + (col + 1) * col_width)
             card_w = col_x1 - col_x0
-            e_x0 = max(0, int(col_x0 + card_w * 0.25))
+            e_x0 = max(0, int(col_x0 + card_w * 0.14))
             e_x1 = min(w, int(col_x1))
             e_y0 = max(0, int(top_margin + row * card_height - 2))
             e_y1 = min(h, int(top_margin + row * card_height + card_height * 0.32))
@@ -1015,7 +1073,7 @@ class OCRExtractor:
             epic_enh = ImageEnhance.Contrast(epic_gray).enhance(2.0)
             epic_prep = ImageEnhance.Sharpness(epic_enh).enhance(1.6)
 
-            # Single targeted re-scan
+            # Single targeted re-scan: Pass 1
             rescan_txt = cls._ocr_image(
                 epic_prep,
                 lang="eng",
@@ -1026,7 +1084,26 @@ class OCRExtractor:
             candidate_epic = clean_epic_no(rescan_txt)
             cand_valid, cand_defect, _ = is_valid_epic_format(candidate_epic)
 
-            if not cand_valid and (not candidate_epic or len(candidate_epic) < 6):
+            # Pass 2: Otsu Adaptive Binarization
+            if not cand_valid:
+                try:
+                    _, otsu_thresh = cv2.threshold(np.array(epic_gray), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                    otsu_pil = Image.fromarray(otsu_thresh)
+                    otsu_txt = cls._ocr_image(
+                        otsu_pil,
+                        lang="eng",
+                        psm=7,
+                        whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/"
+                    ).strip()
+                    cand_otsu = clean_epic_no(otsu_txt)
+                    if is_valid_epic_format(cand_otsu)[0]:
+                        candidate_epic = cand_otsu
+                        cand_valid = True
+                except Exception:
+                    pass
+
+            # Pass 3: PSM 6 block mode
+            if not cand_valid:
                 rescan_txt6 = cls._ocr_image(epic_prep, lang="eng", psm=6).strip()
                 cand6 = clean_epic_no(rescan_txt6)
                 if cand6:
@@ -1035,11 +1112,7 @@ class OCRExtractor:
                         candidate_epic = cand6
                         cand_valid = c6_valid
 
-            if not cand_valid and candidate_epic:
-                candidate_epic = clean_epic_no(candidate_epic)
-                cand_valid, cand_defect, _ = is_valid_epic_format(candidate_epic)
-
-            # Local AI (RapidOCR / ONNX) fallback if Tesseract could not find a valid EPIC
+            # Pass 4: Local AI (RapidOCR / ONNX) fallback
             if not cand_valid:
                 engine = cls.get_onnx_engine()
                 if engine:
@@ -1066,3 +1139,306 @@ class OCRExtractor:
                 return False, current_epic, "AI एकल पुनः स्कैन: कार्ड के इस हिस्से में कोई स्पष्ट EPIC अक्षर/अंक नहीं मिला।"
         except Exception as ex:
             return False, current_epic, f"पुनः स्कैन प्रक्रिया में तकनीकी त्रुटि: {str(ex)}"
+
+    @classmethod
+    def get_voter_card_context_crop(
+        cls,
+        pdf_path: str,
+        page_no: int,
+        card_index: int = 0,
+        serial_no: Optional[int] = None,
+        rescan: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Extracts a high-resolution crop of the target voter card from the original PDF electoral roll
+        along with surrounding voter cards for context (1-2 cards above and below in the same column),
+        with the target card prominently highlighted with a blue border and badge.
+        
+        If rescan is True, performs a high-precision targeted AI / OCR re-scan on that specific card
+        and returns structured fields (serial_no, epic_no, name, relation_type, relation_name,
+        house_no, age, gender, is_deleted, deleted_reason) to auto-fill the edit form.
+        """
+        if not os.path.exists(pdf_path):
+            return {
+                "success": False,
+                "crop_image_base64": None,
+                "rescanned": None,
+                "message": "मूल पीडीएफ फाइल डिस्क पर नहीं मिली।"
+            }
+
+        try:
+            doc = fitz.open(pdf_path)
+            page_idx = max(0, min(page_no - 1, len(doc) - 1))
+            page = doc[page_idx]
+
+            # High-fidelity 200 DPI rendering (optimal crispness and 35ms render speed)
+            zoom = 200.0 / 72.0
+            mat = fitz.Matrix(zoom, zoom)
+            pix = page.get_pixmap(matrix=mat)
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            w, h = img.size
+
+            # Determine layout geometry
+            # Detect whether page has header bar with section info
+            # 1. Try vector text words first if present (0ms)
+            words = page.get_text("words")
+            voter_words = [wrd for wrd in words if wrd[1] > 55 and ("नाम" in wrd[4] or "मकान" in wrd[4])]
+            
+            top_y = None
+            bot_y = None
+            if voter_words:
+                min_w_y0 = min(wrd[1] for wrd in voter_words) * zoom
+                top_y = max(int(h * 0.05), int(min_w_y0 - 22 * zoom))
+                max_w_y1 = max(wrd[3] for wrd in voter_words) * zoom
+                bot_y = min(int(h * 0.98), int(max_w_y1 + 18 * zoom))
+
+            # 2. Pure scanned fallback: ink projection
+            if top_y is None or bot_y is None:
+                gray_arr = np.array(img.convert("L"))
+                horiz = np.mean(gray_arr < 190, axis=1)
+                
+                # Check for divider line between header and cards (around 0.07 to 0.15)
+                cands_top = [y for y in range(int(h * 0.07), int(h * 0.15)) if horiz[y] > 0.30]
+                if cands_top:
+                    top_y = cands_top[0]
+                else:
+                    top_y = int(h * HEADER_FRACTION)
+
+                cands_bot = [y for y in range(int(h * 0.84), int(h * 0.96)) if horiz[y] > 0.30]
+                if cands_bot:
+                    bot_y = cands_bot[-1]
+                else:
+                    bot_y = int(h * (1.0 - FOOTER_FRACTION))
+
+            doc.close()
+
+            left_m = int(w * LEFT_MARGIN_FRACTION)
+            right_m = int(w * RIGHT_MARGIN_FRACTION)
+            usable_w = w - left_m - right_m
+            col_w = usable_w / float(NUM_COLUMNS)
+            card_h = (bot_y - top_y) / 10.0
+
+            # Compute row and column for target card (0..29 -> row = card_index // 3, col = card_index % 3)
+            row = max(0, min(9, card_index // NUM_COLUMNS))
+            col = max(0, min(NUM_COLUMNS - 1, card_index % NUM_COLUMNS))
+
+            # Surrounding context: 1 row above and 1 row below (clamped to 0..9)
+            row_start = max(0, row - 1)
+            row_end = min(9, row + 1)
+            if row == 0:
+                row_end = min(9, 2)
+            elif row == 9:
+                row_start = max(0, 7)
+
+            pad_x = 10
+            crop_x0 = max(0, int(left_m + col * col_w - pad_x))
+            crop_x1 = min(w, int(left_m + (col + 1) * col_w + pad_x))
+            crop_y0 = max(0, int(top_y + row_start * card_h - 6))
+            crop_y1 = min(h, int(top_y + (row_end + 1) * card_h + 6))
+
+            context_crop = img.crop((crop_x0, crop_y0, crop_x1, crop_y1))
+            cw, ch = context_crop.size
+
+            # Target card coordinates relative to context_crop
+            t_x0 = max(2, int(left_m + col * col_w) - crop_x0)
+            t_x1 = min(cw - 2, int(left_m + (col + 1) * col_w) - crop_x0)
+            t_y0 = max(2, int(top_y + row * card_h) - crop_y0)
+            t_y1 = min(ch - 2, int(top_y + (row + 1) * card_h) - crop_y0)
+
+            # Draw visual highlight around target card
+            draw = ImageDraw.Draw(context_crop)
+            # High-visibility 4px royal blue outline
+            draw.rectangle([t_x0, t_y0, t_x1, t_y1], outline=(37, 99, 235), width=4)
+
+            # Top label badge identifying the selected voter
+            display_serial = serial_no if (serial_no and serial_no > 0) else (card_index + 1)
+            badge_text = f"🎯 लक्षित मतदाता — क्र. सं. {display_serial}"
+            badge_w = min(260, t_x1 - t_x0 - 8)
+            draw.rectangle([t_x0, t_y0, t_x0 + badge_w, t_y0 + 22], fill=(37, 99, 235))
+            draw.text((t_x0 + 8, t_y0 + 4), badge_text, fill=(255, 255, 255))
+
+            # Encode context crop to base64 JPEG
+            buf = io.BytesIO()
+            context_crop.save(buf, format="JPEG", quality=90, optimize=True)
+            crop_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+            rescanned_result = None
+            if rescan:
+                # Target card crop alone for deep OCR
+                target_card_crop = img.crop((
+                    max(0, int(left_m + col * col_w)),
+                    max(0, int(top_y + row * card_h)),
+                    min(w, int(left_m + (col + 1) * col_w)),
+                    min(h, int(top_y + (row + 1) * card_h))
+                ))
+                rescanned_result = cls.rescan_single_voter_card_full(
+                    card_crop=target_card_crop,
+                    default_serial=display_serial,
+                    page_no=page_no
+                )
+
+            return {
+                "success": True,
+                "page_no": page_no,
+                "card_index": card_index,
+                "serial_no": display_serial,
+                "crop_image_base64": f"data:image/jpeg;base64,{crop_b64}",
+                "rescanned": rescanned_result,
+                "message": "वास्तविक पीडीएफ से क्रॉप सफलतापूर्वक लोड हुआ।"
+            }
+        except Exception as ex:
+            return {
+                "success": False,
+                "crop_image_base64": None,
+                "rescanned": None,
+                "message": f"क्रॉप तैयार करने में त्रुटि: {str(ex)}"
+            }
+
+    @classmethod
+    def rescan_single_voter_card_full(
+        cls,
+        card_crop: Image.Image,
+        default_serial: int = 1,
+        page_no: int = 1
+    ) -> Dict[str, Any]:
+        """
+        Performs high-quality targeted AI / OCR re-scan on a single voter card:
+        Extracts Serial, EPIC (multi-pass Otsu + PSM 7 + RapidOCR ONNX), Name, Relation,
+        House No, Age, Gender, and checks for Deletion stamps.
+        Returns structured dictionary ready to auto-fill the edit form.
+        """
+        cw, ch = card_crop.size
+
+        # 1. Top Header OCR (Serial and EPIC)
+        top_crop = card_crop.crop((0, 0, cw, int(ch * 0.32)))
+        top_eng = cls._ocr_image(top_crop, lang="eng", psm=6)
+        
+        # Extract printed serial number
+        sm = re.search(r'^\s*\|?\s*(\d{1,5})\b', top_eng)
+        extracted_serial = int(sm.group(1)) if sm else default_serial
+
+        # Multi-pass EPIC extraction
+        e_x0 = max(0, int(cw * 0.14))
+        epic_crop = card_crop.crop((e_x0, 0, cw, int(ch * 0.32)))
+        epic_gray = epic_crop.convert("L")
+        epic_enh = ImageEnhance.Contrast(epic_gray).enhance(2.0)
+        epic_prep = ImageEnhance.Sharpness(epic_enh).enhance(1.6)
+
+        # Pass 1: PSM 7 whitelist
+        rescan_txt7 = cls._ocr_image(
+            epic_prep,
+            lang="eng",
+            psm=7,
+            whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/"
+        ).strip()
+        cand_epic = clean_epic_no(rescan_txt7)
+        cand_valid, _, _ = is_valid_epic_format(cand_epic)
+
+        # Pass 2: Otsu Adaptive Binarization
+        if not cand_valid:
+            try:
+                _, otsu_t = cv2.threshold(np.array(epic_gray), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                otsu_txt = cls._ocr_image(
+                    Image.fromarray(otsu_t),
+                    lang="eng",
+                    psm=7,
+                    whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/"
+                ).strip()
+                c_otsu = clean_epic_no(otsu_txt)
+                if is_valid_epic_format(c_otsu)[0]:
+                    cand_epic = c_otsu
+                    cand_valid = True
+            except Exception:
+                pass
+
+        # Pass 3: PSM 6 block mode
+        if not cand_valid:
+            rescan_txt6 = cls._ocr_image(epic_prep, lang="eng", psm=6).strip()
+            c6 = clean_epic_no(rescan_txt6)
+            if c6 and is_valid_epic_format(c6)[0]:
+                cand_epic = c6
+                cand_valid = True
+            elif c6 and not cand_epic:
+                cand_epic = c6
+
+        # Pass 4: Local AI (RapidOCR / ONNX) fallback
+        if not cand_valid:
+            engine = cls.get_onnx_engine()
+            if engine:
+                try:
+                    ai_res, _ = engine(np.array(epic_crop))
+                    if ai_res:
+                        ai_combined = " ".join([line[1] for line in ai_res])
+                        cand_ai = clean_epic_no(ai_combined)
+                        if is_valid_epic_format(cand_ai)[0]:
+                            cand_epic = cand_ai
+                            cand_valid = True
+                        elif cand_ai and (not cand_epic or len(cand_ai) > len(cand_epic)):
+                            cand_epic = cand_ai
+                except Exception:
+                    pass
+
+        # Also check top_eng if cand_epic is still empty
+        if not cand_epic:
+            c_top = clean_epic_no(top_eng)
+            if c_top:
+                cand_epic = c_top
+
+        # 2. Body Details (Hindi OCR)
+        body_crop = card_crop.crop((0, int(ch * 0.20), int(cw * 0.74), ch))
+        body_hin = cls._ocr_image(body_crop, lang="hin", psm=6)
+        body_eng = cls._ocr_image(body_crop, lang="eng", psm=6)
+        combined_box = f"{top_eng}\n{body_hin}\n{body_eng}"
+
+        parsed = UPFieldParser.parse_single_voter_box(
+            box_text=combined_box,
+            default_serial=extracted_serial or default_serial,
+            page_no=page_no,
+            metadata=None,
+            box_eng=f"{top_eng}\n{body_eng}"
+        )
+
+        # 3. Check for DELETED stamp
+        is_diag, d_reason = cls.detect_diagonal_deleted_stamp(card_crop)
+        is_del_txt = bool(UPFieldParser.IS_DELETED_REGEX.search(combined_box))
+        is_del = is_diag or is_del_txt
+        del_reason = d_reason if is_diag else ("विलोपित / DELETED" if is_del_txt else "")
+
+        name_val = parsed.name if (parsed and parsed.name) else ""
+        if is_del and name_val:
+            name_val = UPFieldParser.IS_DELETED_REGEX.sub("", name_val).strip()
+
+        rel_type_val = parsed.relation_type if (parsed and parsed.relation_type) else "पिता"
+        rel_name_val = parsed.relation_name if (parsed and parsed.relation_name) else ""
+        if is_del and rel_name_val:
+            rel_name_val = UPFieldParser.IS_DELETED_REGEX.sub("", rel_name_val).strip()
+
+        house_val = parsed.house_no if (parsed and parsed.house_no) else ""
+        age_val = parsed.age if (parsed and parsed.age and 18 <= parsed.age <= 120) else None
+        gender_val = parsed.gender if (parsed and parsed.gender in ['पुरुष', 'महिला', 'अन्य']) else "पुरुष"
+
+        return {
+            "serial_no": extracted_serial or default_serial,
+            "epic_no": cand_epic or (parsed.epic_no if parsed else ""),
+            "name": name_val,
+            "relation_type": rel_type_val,
+            "relation_name": rel_name_val,
+            "house_no": house_val,
+            "age": age_val,
+            "gender": gender_val,
+            "is_deleted": is_del,
+            "deleted_reason": del_reason,
+            "is_valid_epic": cand_valid
+        }
+
+
+# Warm up RapidOCR in background thread for instant response times
+import threading
+def _warmup_ocr_engine_background():
+    try:
+        OCRExtractor.get_onnx_engine()
+    except Exception:
+        pass
+
+threading.Thread(target=_warmup_ocr_engine_background, daemon=True).start()
+

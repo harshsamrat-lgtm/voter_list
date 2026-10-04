@@ -113,6 +113,12 @@ class UPFieldParser:
             if clean_assm:
                 meta["assembly"] = clean_hindi_text(clean_assm)
 
+        # Fallback: ERO line at footer/header e.g. 'निर्वाचक रजिस्ट्रीकरण अधिकारी, 174 ‐ लखनऊ मध्य'
+        if not meta["assembly"]:
+            ero_m = re.search(r'(?:निर्वाचक\s*रजिस्ट्रीकरण\s*अधिकारी|ERO)[,\s:\-–—\.\s]+([0-9\u0966-\u096F]+\s*[\-–—\s][^\n\r\|]+?)(?=\s*\||\s*पृष्ठ|$)', text, re.IGNORECASE)
+            if ero_m:
+                meta["assembly"] = clean_hindi_text(ero_m.group(1).strip())
+
         # 3. Polling Station (मतदान स्थल):
         # Extract block from '3. मतदान स्थल का विवरण' up to section 4 or signature
         sec3_match = re.search(r'3\.\s*मतदान\s*स्थल\s*का\s*विवरण[\s\S]+?(?=(?:4\.\s*निर्वाचक|निर्वाचक\s*रजिस्ट्रीकरण|कुल\s*पृष्ठ|$))', text)

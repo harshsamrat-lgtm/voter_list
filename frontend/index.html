@@ -3,19 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>मतदाता सेवा मास्टर (Voter Service Master)</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Kalam:wght@400;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
     <!-- Lucide Icons & Chart.js -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/js/auth.js"></script>
     <link rel="icon" type="image/png" href="/assets/logo.png">
     <link rel="alternate icon" type="image/x-icon" href="/assets/favicon.ico">
-    <link rel="apple-touch-icon" href="/assets/logo.png">
-    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Kalam:wght@300;400;700&family=Tillana:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css?v=5.1&t=20261002_scroll">
 </head>
 <body class="initial-state">
     <!-- Tiranga Top Banner -->
@@ -76,16 +81,16 @@
             </div>
             
             <div class="header-actions">
-                <!-- Software Update Notification Button (Revealed dynamically when new version is published) -->
-                <button type="button" class="btn-update-nav" id="btnUpdateNav" style="display: none;" title="नया सॉफ्टवेयर अपडेट उपलब्ध है">
-                    <span class="update-pulse-dot"></span>
-                    <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
-                    <span id="updateNavText">अपडेट उपलब्ध</span>
+                <!-- Git Update Button: Always visible so user can check & apply updates from Git -->
+                <button type="button" class="btn-update-nav" id="btnUpdateNav" style="display: inline-flex;" title="Git से ऐप अपडेट जांचें एवं नया वर्ज़न लागू करें (Check & Install Updates)">
+                    <span class="update-pulse-dot" id="updatePulseDot" style="display: none;"></span>
+                    <i data-lucide="sparkles" style="width: 15px; height: 15px;"></i>
+                    <span id="updateNavText">Git से अपडेट</span>
                 </button>
-                <!-- Super-Admin Only Git OTA Publisher Button (Visible ONLY to harshsamrat) -->
-                <button type="button" class="btn-publish-nav" id="btnOpenPublisherNav" style="display: none;" title="Git पर नया OTA अपडेट पब्लिश करें (Super Admin)">
-                    <i data-lucide="cloud-upload" style="width: 16px; height: 16px;"></i>
-                    <span>🚀 नया अपडेट पब्लिश करें</span>
+                <!-- Git Publish/Upload Button: Always visible for uploading updates to Git -->
+                <button type="button" class="btn-publish-nav" id="btnOpenPublisherNav" style="display: inline-flex;" title="Git पर नया अपडेट पब्लिश/अपलोड करें (Publish OTA to GitHub)">
+                    <i data-lucide="cloud-upload" style="width: 15px; height: 15px;"></i>
+                    <span>🚀 Git पर अपडेट अपलोड करें</span>
                 </button>
                 <!-- App Refresh Button -->
                 <button type="button" class="btn-refresh-nav" id="appRefreshBtn" title="पेज एवं डेटा पुनः लोड करें (Refresh App)">
@@ -96,6 +101,10 @@
                     <span class="qr-pulse-dot" id="qrNavDot"></span>
                     <i data-lucide="qr-code" style="width: 16px; height: 16px;"></i>
                     <span>मोबाइल QR कोड</span>
+                </button>
+                <button type="button" onclick="openSpotCheckModal()" title="विशिष्ट क्रमांकों का गहन OCR व डेटा सत्यापन (Spot Check)" style="background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; box-shadow: 0 1px 2px rgba(79, 70, 229, 0.1);">
+                    <i data-lucide="scan-line" style="width: 15px; height: 15px; color: #4F46E5;"></i>
+                    <span>गहन सत्यापन (Spot-Check)</span>
                 </button>
                 <a href="/search" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;" title="नागरिक मतदाता खोज पोर्टल">
                     <i data-lucide="search"></i>
@@ -117,36 +126,41 @@
 
         <!-- Navigation Tabs -->
         <nav class="nav-tabs-bar">
-            <button class="nav-tab-btn active" id="tabDashboardBtn" data-tab="dashboard">
+            <button class="nav-tab-btn active" id="tabDashboardBtn" data-tab="dashboard" onclick="switchTab('dashboard')">
                 <i data-lucide="layout-dashboard"></i>
                 <span>🏠 डैशबोर्ड (Dashboard)</span>
             </button>
-            <button class="nav-tab-btn" id="tabConverterBtn" data-tab="converter">
+            <button class="nav-tab-btn" id="tabConverterBtn" data-tab="converter" onclick="switchTab('converter')">
                 <i data-lucide="file-spreadsheet"></i>
                 <span>PDF कनवर्टर (PDF to Excel)</span>
             </button>
-            <button class="nav-tab-btn" id="tabDatabaseBtn" data-tab="database">
+            <button class="nav-tab-btn" id="tabDatabaseBtn" data-tab="database" onclick="switchTab('database')">
                 <i data-lucide="database"></i>
                 <span>मतदाता खोजें / मास्टर डेटाबेस (Voter Search)</span>
                 <span class="nav-tab-badge" id="navDbCountBadge">0</span>
             </button>
-            <button class="nav-tab-btn" id="tabUsersBtn" data-tab="users">
+            <button class="nav-tab-btn" id="tabUsersBtn" data-tab="users" onclick="switchTab('users')">
                 <i data-lucide="users"></i>
                 <span>👥 यूजर प्रबंधन (User Management)</span>
                 <span class="nav-tab-badge" id="navUsersCountBadge" style="background: rgba(234, 88, 12, 0.15); color: #EA580C;">1</span>
             </button>
-            <button class="nav-tab-btn" id="tabAuditBtn" data-tab="audit">
+            <button class="nav-tab-btn" id="tabAuditBtn" data-tab="audit" onclick="switchTab('audit')">
                 <i data-lucide="scroll-text"></i>
                 <span>📝 गतिविधि लॉग (Audit Log)</span>
             </button>
-            <button class="nav-tab-btn" id="tabPendingEditsBtn" data-tab="pending-edits" style="display: none;">
+            <button class="nav-tab-btn" id="tabPendingEditsBtn" data-tab="pending-edits" onclick="switchTab('pending-edits')" style="display: none;">
                 <i data-lucide="check-check" style="color: #ea580c;"></i>
                 <span>ऑपरेटर संपादन समीक्षा</span>
                 <span class="nav-tab-badge" id="navPendingEditsCountBadge" style="background: #ef4444; color: white; display: none;">0</span>
             </button>
-            <button class="nav-tab-btn" id="tabStreetAuditBtn" data-tab="street-audit">
+            <button class="nav-tab-btn" id="tabStreetAuditBtn" data-tab="street-audit" onclick="switchTab('street-audit')">
                 <i data-lucide="map-pin" style="color: #059669;"></i>
                 <span>🏘️ भौगोलिक गली सर्वे</span>
+            </button>
+            <button class="nav-tab-btn" id="tabPanchayatBtn" data-tab="panchayat" onclick="switchTab('panchayat')">
+                <i data-lucide="layers" style="color: #6366F1;"></i>
+                <span>🏛️ पंचायत / निकाय तुलना</span>
+                <span class="nav-tab-badge" id="navPanchayatCountBadge" style="background: rgba(99, 102, 241, 0.15); color: #4F46E5; display: none;">0</span>
             </button>
             <a href="/caste-analytics" target="_blank" class="nav-tab-btn" id="navCasteAnalyticsBtn" style="text-decoration: none; color: inherit;" title="जाति एवं जनसांख्यिकी विश्लेषण ग्राफ नए पेज पर खोलें">
                 <i data-lucide="pie-chart" style="color: #EA580C;"></i>
@@ -241,6 +255,14 @@
                             <div class="qa-icon" style="background: linear-gradient(135deg, #25D366, #128C7E);"><i data-lucide="qr-code"></i></div>
                             <div class="qa-text">QR कोड व व्हाट्सएप</div>
                         </div>
+                        <div class="quick-action-card" onclick="openUpdateModal(); checkAppUpdates(true);" title="Git से ऐप का नया संस्करण जांचें एवं अपडेट लागू करें">
+                            <div class="qa-icon" style="background: linear-gradient(135deg, #0284C7, #0369A1);"><i data-lucide="sparkles"></i></div>
+                            <div class="qa-text">Git से ऐप अपडेट करें</div>
+                        </div>
+                        <div class="quick-action-card" id="qaGitPublishCard" onclick="openGitPublishModal()" title="Git पर कोड, नया संस्करण व OTA अपडेट अपलोड / पब्लish करें">
+                            <div class="qa-icon" style="background: linear-gradient(135deg, #4F46E5, #3730A3);"><i data-lucide="cloud-upload"></i></div>
+                            <div class="qa-text">🚀 Git पर अपडेट अपलोड</div>
+                        </div>
                     </div>
 
                     <!-- Tips Banner -->
@@ -298,20 +320,152 @@
                     </div>
 
                     <div class="dropzone" id="dropzone">
-                        <input type="file" id="fileInput" accept=".pdf" class="file-input-hidden">
+                        <input type="file" id="fileInput" accept=".pdf" multiple class="file-input-hidden">
+                        <input type="file" id="folderInput" webkitdirectory directory multiple class="file-input-hidden">
                         <div class="dropzone-content">
                             <div class="upload-icon-wrapper">
                                 <div class="upload-icon-ring"></div>
                                 <i data-lucide="file-up" class="upload-icon"></i>
                             </div>
-                            <h3>PDF फ़ाइल यहाँ खींचें और छोड़ें</h3>
-                            <p>या अपने कंप्यूटर से फ़ाइल चुनें (.pdf केवल)</p>
-                            <div class="dropzone-actions">
-                                <button type="button" class="btn-primary select-btn" id="selectFileBtn">
-                                    <i data-lucide="folder-open"></i> फ़ाइल चुनें
+                            <h3>PDF फ़ाइल या पूरा फ़ोल्डर यहाँ खींचें और छोड़ें</h3>
+                            <p>एकल फ़ाइल या पूरे फ़ोल्डर की सभी विधानसभा PDF एक साथ स्कैन करें</p>
+                            <div class="dropzone-actions" style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center;">
+                                <label for="fileInput" class="btn-primary select-btn" id="selectFileBtn" style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;" onclick="const fi = document.getElementById('fileInput'); if (fi) { fi.value = ''; fi.click(); }">
+                                    <i data-lucide="file"></i> <span>फ़ाइल चुनें</span>
+                                </label>
+                                <button type="button" class="btn-primary select-btn" id="selectFolderBtn" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);">
+                                    <i data-lucide="folder-archive"></i> 📁 पूरा फ़ोल्डर चुनें (बल्क स्कैन)
                                 </button>
                                 <button type="button" class="btn-demo-subtle" id="testSampleBtn" title="लखनऊ AC-174 सैंपल लिस्ट से 1-क्लिक टेस्ट करें">
                                     <i data-lucide="zap"></i> <span>सैंपल से टेस्ट करें</span>
+                                </button>
+                            </div>
+                            <!-- Direct Server / Local Folder Path Option -->
+                            <div class="local-folder-direct-box" style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed #E2E8F0; width: 100%; max-width: 540px; text-align: left;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                    <span style="font-size: 0.8rem; font-weight: 600; color: #475569;">
+                                        <i data-lucide="hard-drive" style="width: 14px; height: 14px; vertical-align: middle; color: #6366F1;"></i> या सीधे कंप्यूटर फ़ोल्डर पाथ दर्ज करें:
+                                    </span>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="text" id="localFolderPathInput" placeholder="उदा. C:\Voter_PDFs\AC_174 या D:\Lists" style="flex: 1; padding: 7px 12px; font-size: 0.82rem; border: 1.5px solid #CBD5E1; border-radius: 8px; font-family: monospace; outline: none; background: #fff;">
+                                    <button type="button" id="browseFolderBtn" class="btn-outline" style="padding: 7px 14px; font-size: 0.82rem; white-space: nowrap; border-color: #A5B4FC; color: #4338CA; background: #EEF2FF; font-weight: 600;">
+                                        <i data-lucide="folder-search"></i> 📁 ब्राउज़
+                                    </button>
+                                    <button type="button" id="startLocalFolderScanBtn" class="btn-primary" style="padding: 7px 16px; font-size: 0.82rem; white-space: nowrap; background: #4338CA;">
+                                        <i data-lucide="play"></i> स्कैन करें
+                                    </button>
+                                </div>
+                                <div style="margin-top: 6px; font-size: 0.74rem; color: #64748B;">
+                                    💡 <strong>सुझाव:</strong> आप <em>"फ़ाइल चुनें"</em> पर क्लिक करके भी फ़ोल्डर में जाकर <code>Ctrl + A</code> से सभी PDF एक साथ चुन सकते हैं।
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 2-B: Bulk Scanner Live Console (बल्क स्कैन लाइव डैशबोर्ड) -->
+                <section class="section-card bulk-progress-section" id="bulkProgressSection" style="display: none; margin-bottom: 24px;">
+                    <div class="scanner-console-card" style="border-left: 5px solid #7C3AED; background: #FAF5FF; padding: 20px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md);">
+                        <div class="scanner-console-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid #E9D5FF; padding-bottom: 14px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 44px; height: 44px; border-radius: 12px; background: #EDE9FE; display: flex; align-items: center; justify-content: center; color: #7C3AED;">
+                                    <i data-lucide="layers" style="width: 24px; height: 24px;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #581C87;" id="bulkHeading">विधानसभा बल्क PDF स्कैन जारी है...</h3>
+                                    <p style="margin: 3px 0 0; font-size: 0.86rem; color: #6B21A8;" id="bulkSubtext">फ़ाइलों का क्रमवार विश्लेषण एवं 300 DPI मेटाडेटा निष्कर्षण</p>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="timer-live-badge" style="background: #7C3AED; color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                                    <span class="timer-pulse-dot" style="background: #A7F3D0;"></span> 300 DPI उच्च-गुणवत्ता मोड
+                                </span>
+                                <button type="button" id="cancelBulkScanBtn" class="btn-outline" style="border-color: #F87171; color: #DC2626; padding: 6px 12px; font-size: 0.8rem; border-radius: 8px;">
+                                    <i data-lucide="x-circle"></i> बल्क स्कैन रोकें
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Overall Bulk Progress Bar -->
+                        <div style="margin-top: 18px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 600; color: #4C1D95; margin-bottom: 6px;">
+                                <span id="bulkFilesCountText">कुल प्रगति: फ़ाइल 0 / 0</span>
+                                <span id="bulkPercentText">0%</span>
+                            </div>
+                            <div class="progress-bar-container" style="height: 12px; background: #E9D5FF; border-radius: 6px; overflow: hidden;">
+                                <div class="progress-bar-fill" id="bulkProgressBarFill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #7C3AED, #A855F7); transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Current File & Live 300 DPI Extracted Metadata Strip -->
+                        <div style="margin-top: 16px; background: #FFFFFF; border: 1.5px solid #DDD6FE; border-radius: 12px; padding: 14px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+                            <div>
+                                <span style="font-size: 0.76rem; font-weight: 600; text-transform: uppercase; color: #6D28D9; display: block;">वर्तमान फ़ाइल (Current PDF)</span>
+                                <strong id="bulkCurrentFileName" style="font-size: 0.95rem; color: #1E293B; word-break: break-all;">--</strong>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.76rem; font-weight: 600; text-transform: uppercase; color: #6D28D9; display: block;">🏛️ विधान सभा (Assembly)</span>
+                                <strong id="bulkLiveAssembly" style="font-size: 0.95rem; color: #1E293B;">--</strong>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.76rem; font-weight: 600; text-transform: uppercase; color: #6D28D9; display: block;">🔢 भाग संख्या (Part No)</span>
+                                <strong id="bulkLivePart" style="font-size: 0.95rem; color: #1E293B;">--</strong>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.76rem; font-weight: 600; text-transform: uppercase; color: #6D28D9; display: block;">🏫 मतदान स्थल (Polling Station)</span>
+                                <strong id="bulkLivePollingStation" style="font-size: 0.88rem; color: #1E293B; line-height: 1.3;">--</strong>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.76rem; font-weight: 600; text-transform: uppercase; color: #15803D; display: block;">👥 कुल सुरक्षित मतदाता</span>
+                                <strong id="bulkTotalVotersCount" style="font-size: 1.1rem; color: #15803D;">0</strong>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.76rem; font-weight: 600; text-transform: uppercase; color: #2563EB; display: block;">⏱️ कुल बीता समय (Elapsed)</span>
+                                <strong id="bulkLiveElapsedTime" style="font-size: 0.95rem; color: #1D4ED8;">0 सेकंड</strong>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.76rem; font-weight: 600; text-transform: uppercase; color: #7C3AED; display: block;">⏳ कुल व शेष समय (ETA)</span>
+                                <strong id="bulkLiveETA" style="font-size: 0.90rem; color: #7C3AED;">गणना हो रही है...</strong>
+                            </div>
+                        </div>
+
+                        <!-- Queue Status Table -->
+                        <div style="margin-top: 16px; max-height: 320px; overflow-y: auto; border: 1px solid #E2E8F0; border-radius: 10px; background: white;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.84rem; text-align: left;">
+                                <thead style="background: #F1F5F9; color: #334155; position: sticky; top: 0; z-index: 2;">
+                                    <tr>
+                                        <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1;">#</th>
+                                        <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1;">PDF फ़ाइल</th>
+                                        <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1;">विधान सभा</th>
+                                        <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1;">भाग सं०</th>
+                                        <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1;">मतदान स्थल</th>
+                                        <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1;">मतदाता</th>
+                                        <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1; color: #2563EB;">समय लगा</th>
+                                        <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1;">स्थिति</th>
+                                        <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1; text-align: right;">डाउनलोड</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bulkQueueTableBody">
+                                    <tr>
+                                        <td colspan="9" style="padding: 24px; text-align: center; color: #64748B;">कोई फ़ाइल कतार में नहीं है</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Bulk Completion Action Bar -->
+                        <div id="bulkCompleteActions" style="display: none; margin-top: 16px; padding: 14px; background: #ECFDF5; border: 1.5px solid #6EE7B7; border-radius: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                            <div style="display: flex; align-items: center; gap: 10px; color: #065F46;">
+                                <i data-lucide="check-circle" style="width: 24px; height: 24px; color: #059669;"></i>
+                                <span style="font-weight: 600; font-size: 0.95rem;">🎉 सभी फ़ाइलें सफलतापूर्वक स्कैन हो गईं एवं डेटाबेस में बिना डुप्लीकेट सुरक्षित हो चुकी हैं!</span>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <a href="/search" class="btn-primary" style="padding: 8px 16px; font-size: 0.85rem; background: #059669;">
+                                    <i data-lucide="search"></i> डेटाबेस में खोजें
+                                </a>
+                                <button type="button" id="bulkResetBtn" class="btn-outline" style="padding: 8px 16px; font-size: 0.85rem;">
+                                    <i data-lucide="rotate-ccw"></i> नया स्कैन करें
                                 </button>
                             </div>
                         </div>
@@ -547,6 +701,10 @@
                     </div>
 
                     <div class="export-actions">
+                        <button class="btn-outline" id="btnDeleteFilteredPreview" type="button" style="color: #DC2626; border-color: #FCA5A5; background: #FEF2F2; display: none; align-items: center; gap: 6px;" title="वर्तमान फ़िल्टर किए गए मतदाताओं को इस लिस्ट से हटाएं">
+                            <i data-lucide="trash-2"></i>
+                            <span>🗑️ फ़िल्टर किए गए हटाएं (<span id="previewFilteredCountBadge">0</span>)</span>
+                        </button>
                         <button class="btn-outline" id="jobBulkUpdateMetadataBtn" type="button" style="color: #7C3AED; border-color: #C4B5FD; background: #F5F3FF; display: inline-flex; align-items: center; gap: 6px;" title="इस अपलोड बैच के सभी मतदाताओं की भाग संख्या, विधानसभा व मतदान केंद्र एक साथ बदलें">
                             <i data-lucide="edit-3"></i>
                             <span>📝 बल्क अपडेट (भाग/विधानसभा/केंद्र)</span>
@@ -589,6 +747,29 @@
 
                 <!-- Main Preview Container Card -->
                 <div class="table-container-card">
+                    <!-- Phase 5: Zero-Error Verification Workbench Bar -->
+                    <div id="ulbAuditWorkbenchBar" class="ulb-audit-workbench-bar" style="display: none;">
+                        <div class="ulb-audit-header">
+                            <div class="ulb-audit-title">
+                                <i data-lucide="shield-check" style="color: #2563EB; width: 20px; height: 20px;"></i>
+                                <span>शून्य-त्रुटि विज़ुअल ऑडिट वर्कबेंच (Zero-Error Verification Workbench)</span>
+                            </div>
+                            <div class="ulb-audit-metrics" id="ulbAuditMetrics">
+                                <!-- Populated dynamically via JS -->
+                            </div>
+                            <div class="ulb-audit-actions">
+                                <button type="button" class="ulb-filter-btn" id="ulbReviewOnlyToggleBtn">
+                                    <i data-lucide="filter" style="width: 14px; height: 14px;"></i>
+                                    <span id="ulbReviewBtnText">केवल सत्यापन योग्य दिखाएं</span>
+                                </button>
+                                <button type="button" class="ulb-filter-btn" id="ulbMissingSerialsBtn" style="display: none; color: #DC2626; border-color: #FCA5A5; background: #FEF2F2;">
+                                    <i data-lucide="alert-triangle" style="width: 14px; height: 14px;"></i>
+                                    <span id="ulbMissingSerialsBtnText">छूटे क्रम संख्या</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Global Filters (Work in both Paper & Table view) -->
                     <div class="table-toolbar">
                         <div class="search-box">
@@ -874,6 +1055,10 @@
                             <button type="button" class="btn-outline" id="rescanPartBtn" title="इस भाग के सभी मतदाताओं पर त्रुटि सुधार चलाएं" style="background: white; border: 1px solid #d97706; color: #d97706; font-weight: 600; height: 42px; padding: 0 14px; border-radius: var(--radius-md); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
                                 <i data-lucide="sparkles" style="width: 15px; height: 15px;"></i>
                                 <span>त्रुटि सुधार</span>
+                            </button>
+                            <button type="button" onclick="openSpotCheckModal()" title="विशिष्ट क्रमांकों का गहन OCR व डेटा सत्यापन (Spot Check)" style="background: #EEF2FF; border: 1px solid #C7D2FE; color: #4338CA; font-weight: 700; height: 42px; padding: 0 14px; border-radius: var(--radius-md); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+                                <i data-lucide="scan-line" style="width: 16px; height: 16px; color: #4F46E5;"></i>
+                                <span>गहन सत्यापन (Spot-Check)</span>
                             </button>
                         </div>
                     </form>
@@ -1467,6 +1652,45 @@
                             </table>
                         </div>
                     </div>
+
+                    <!-- System Software & Git Updates Hub Card -->
+                    <div class="user-table-card" style="margin-top: 24px; border: 1px solid #C7D2FE; background: linear-gradient(180deg, #F8FAFC 0%, #EEF2FF 100%);">
+                        <div class="user-table-toolbar" style="border-bottom: 1px solid #E0E7FF; padding-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 40px; height: 40px; border-radius: 10px; background: #4F46E5; color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);">
+                                    <i data-lucide="git-branch" style="width: 22px; height: 22px;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin: 0; color: #1E1B4B; font-size: 1.05rem; font-weight: 700;">सॉफ्टवेयर संस्करण व Git ऑटो-अपडेटर (Git OTA Hub)</h3>
+                                    <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: #6366F1;">GitHub रिपॉजिटरी: <a href="https://github.com/harshsamrat-lgtm/voter_list" target="_blank" style="color: #4F46E5; font-weight: 600; text-decoration: none;">harshsamrat-lgtm/voter_list ↗</a></p>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <button type="button" class="btn-primary" onclick="openUpdateModal(); checkAppUpdates(true);" style="background: #0284C7; border-color: #0284C7; font-size: 0.85rem; font-weight: 700; padding: 8px 16px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: white;">
+                                    <i data-lucide="sparkles" style="width: 15px; height: 15px;"></i>
+                                    <span>Git से ऐप अपडेट करें</span>
+                                </button>
+                                <button type="button" class="btn-primary" onclick="openGitPublishModal();" style="background: #4F46E5; border-color: #4F46E5; font-size: 0.85rem; font-weight: 700; padding: 8px 16px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: white;">
+                                    <i data-lucide="cloud-upload" style="width: 15px; height: 15px;"></i>
+                                    <span>🚀 Git पर अपडेट अपलोड करें</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div style="padding: 16px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+                            <div style="background: white; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                                <div style="font-size: 0.75rem; color: #64748B; font-weight: 600; text-transform: uppercase;">वर्तमान इंस्टॉल्ड वर्ज़न</div>
+                                <div style="font-size: 1.25rem; font-weight: 800; color: #1E293B; margin-top: 4px;" id="sysCurVerBadge">v1.0.6</div>
+                            </div>
+                            <div style="background: white; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                                <div style="font-size: 0.75rem; color: #64748B; font-weight: 600; text-transform: uppercase;">अपडेट चैनल</div>
+                                <div style="font-size: 1.2rem; font-weight: 800; color: #059669; margin-top: 4px;">Stable (GitHub OTA)</div>
+                            </div>
+                            <div style="background: white; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                                <div style="font-size: 0.75rem; color: #64748B; font-weight: 600; text-transform: uppercase;">डेटा सुरक्षा शील्ड</div>
+                                <div style="font-size: 1.2rem; font-weight: 800; color: #2563EB; margin-top: 4px;">सक्रिय (100% सेफ)</div>
+                            </div>
+                        </div>
+                    </div>
                 </section>
             </div> <!-- /#usersView -->
 
@@ -1831,11 +2055,544 @@
                     </div>
                 </div>
             </div> <!-- /#streetAuditView -->
+
+            <!-- VIEW 7: PANCHAYAT & LOCAL BODY SCANNER & DUAL VOTER COMPARISON -->
+            <div id="panchayatView" style="display: none;">
+                <!-- Hero Header -->
+                <section class="section-card panchayat-hero" style="background: linear-gradient(135deg, #1E1B4B 0%, #312E81 50%, #4338CA 100%); color: white; padding: 24px; border-radius: 14px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(67, 56, 202, 0.22);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div style="width: 52px; height: 52px; border-radius: 12px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 26px;">
+                                🏛️
+                            </div>
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.45rem; font-weight: 700; color: white; letter-spacing: -0.01em;">
+                                    पंचायत / स्थानीय निकाय वोटर स्कैनर
+                                </h2>
+                                <p style="margin: 4px 0 0 0; font-size: 0.92rem; color: #E0E7FF; opacity: 0.95;">
+                                    ग्राम पंचायत एवं नगर पंचायत वोटर लिस्ट PDF का अलग स्कैन व डेटाबेस
+                                </p>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span id="panchayatTotalBadge" style="padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; background: rgba(255,255,255,0.22); color: white; display: inline-flex; align-items: center; gap: 6px;">
+                                <i data-lucide="database" style="width: 14px; height: 14px;"></i>
+                                <span id="panchayatTotalBadgeCount">0</span> पंचायत वोटर लोड
+                            </span>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- Sub-Navigation Pill Bar -->
+                <div class="panchayat-subnav-bar" style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid #E2E8F0; padding-bottom: 12px; overflow-x: auto;">
+                    <button class="panchayat-subtab-btn active" id="pSubTabBtnUpload" onclick="switchPanchayatSubTab('upload')" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.92rem; border: none; cursor: pointer; transition: all 0.2s; background: #4338CA; color: white;">
+                        <i data-lucide="upload-cloud" style="width: 16px; height: 16px;"></i>
+                        <span>1. PDF स्कैनर व अपलोड</span>
+                    </button>
+                    <button class="panchayat-subtab-btn" id="pSubTabBtnVoters" onclick="switchPanchayatSubTab('voters')" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.92rem; border: none; cursor: pointer; transition: all 0.2s; background: #F1F5F9; color: #475569;">
+                        <i data-lucide="list-filter" style="width: 16px; height: 16px;"></i>
+                        <span>2. पंचायत वोटर डेटाबेस</span>
+                        <span id="pSubTabVotersCountBadge" style="background: #E2E8F0; color: #334155; padding: 2px 7px; border-radius: 12px; font-size: 0.78rem;">0</span>
+                    </button>
+                    <button class="panchayat-subtab-btn" id="pSubTabBtnDuplicates" onclick="switchPanchayatSubTab('duplicates')" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.92rem; border: none; cursor: pointer; transition: all 0.2s; background: #F1F5F9; color: #475569;">
+                        <i data-lucide="copy" style="width: 16px; height: 16px;"></i>
+                        <span>3. अपनी लिस्ट में डुप्लीकेट</span>
+                        <span id="pSubTabDuplicatesCountBadge" style="background: #FEE2E2; color: #DC2626; padding: 2px 7px; border-radius: 12px; font-size: 0.78rem; display: none;">0</span>
+                    </button>
+                    <button class="panchayat-subtab-btn" id="pSubTabBtnCompare" onclick="switchPanchayatSubTab('compare')" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.92rem; border: none; cursor: pointer; transition: all 0.2s; background: #F1F5F9; color: #475569;">
+                        <i data-lucide="git-compare" style="width: 16px; height: 16px;"></i>
+                        <span>4. नगर पंचायत से दोहरे मतदाता तुलना</span>
+                        <span id="pSubTabCompareCountBadge" style="background: #FEF3C7; color: #D97706; padding: 2px 7px; border-radius: 12px; font-size: 0.78rem; display: none;">0</span>
+                    </button>
+                </div>
+
+                <!-- SUB-VIEW 1: UPLOAD & LIVE SCANNER -->
+                <div id="panchayatSubViewUpload" style="display: block;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px;">
+                        <!-- Upload Parameters Card -->
+                        <div class="section-card" style="background: white; border-radius: 12px; padding: 24px; border: 1px solid #E2E8F0; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid #F1F5F9;">
+                                <div style="width: 36px; height: 36px; border-radius: 8px; background: #EEF2FF; color: #4F46E5; display: flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="file-up" style="width: 20px; height: 20px;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 1.1rem; color: #1E293B;">1. वोटर लिस्ट PDF एवं निकाय विवरण</h3>
+                                    <p style="margin: 2px 0 0 0; font-size: 0.82rem; color: #64748B;">स्कैन करने से पूर्व निकाय प्रकार व नाम दर्ज करें</p>
+                                </div>
+                            </div>
+
+                            <form id="panchayatUploadForm" onsubmit="event.preventDefault(); startPanchayatUploadAndScan();">
+                                <div style="display: flex; flex-direction: column; gap: 14px;">
+                                    <!-- PDF Dropzone (Top for immediate inspection) -->
+                                    <div>
+                                        <label style="display: block; font-size: 0.88rem; font-weight: 600; color: #334155; margin-bottom: 6px;">
+                                            वोटर लिस्ट PDF चुनें <span style="color: #EF4444;">*</span>
+                                        </label>
+                                        <div id="pUploadDropzone" style="border: 2px dashed #818CF8; border-radius: 12px; padding: 20px; text-align: center; background: #EEF2FF; cursor: pointer; transition: all 0.2s;" onclick="document.getElementById('pUploadFileInput').click();">
+                                            <input type="file" id="pUploadFileInput" accept=".pdf" style="display: none;" onchange="handlePanchayatFileSelected(this);">
+                                            <div style="font-size: 32px; margin-bottom: 6px;">📑</div>
+                                            <div style="font-size: 0.95rem; font-weight: 700; color: #3730A3;" id="pUploadFileName">PDF फ़ाइल यहाँ खींचें या क्लिक करके चुनें</div>
+                                            <div style="font-size: 0.8rem; color: #6366F1; margin-top: 3px;">राज्य निर्वाचन आयोग (SEC UP) 2-कॉलम अथवा डिजिटल निकाय वोटर लिस्ट समर्थित</div>
+                                        </div>
+
+                                        <!-- Auto-Detected Header Metadata Notification Box -->
+                                        <div id="pDetectedMetaCard" style="display: none; background: #F0FDF4; border: 1.5px solid #86EFAC; border-radius: 10px; padding: 12px 14px; margin-top: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                                <div style="display: flex; align-items: center; gap: 8px; color: #166534; font-weight: 700; font-size: 0.88rem;">
+                                                    <i data-lucide="sparkles" style="width: 16px; height: 16px; color: #16A34A;"></i>
+                                                    <span>PDF हेडर से प्रशासनिक विवरण स्वतः लोड हो गया:</span>
+                                                </div>
+                                                <span style="font-size: 0.75rem; background: #DCFCE7; color: #166534; font-weight: 600; padding: 2px 8px; border-radius: 6px;">आप नीचे किसी भी मान को बदल सकते हैं</span>
+                                            </div>
+                                            <div id="pDetectedMetaDetails" style="font-size: 0.82rem; color: #14532D; line-height: 1.5; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                                <!-- Filled dynamically by JavaScript -->
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Section Header: Bulk Header Fields -->
+                                    <div style="border-top: 1px solid #E2E8F0; padding-top: 10px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                            <span style="font-size: 0.86rem; font-weight: 700; color: #1E293B;">
+                                                ⚙️ स्कैन के समय बल्क विवरण (Bulk Details Override)
+                                            </span>
+                                            <span style="font-size: 0.76rem; color: #64748B;">
+                                                (ये विवरण पूरी सूची के सभी मतदाताओं पर लागू होंगे)
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <!-- Global Details: Body Type, Body Name, District, Engine -->
+                                    <div style="border-top: 1px solid #E2E8F0; padding-top: 10px;">
+                                        <div style="font-size: 0.86rem; font-weight: 700; color: #1E293B; margin-bottom: 8px;">
+                                            🏛️ सामान्य निकाय विवरण (General Body Info)
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: 1fr 1.2fr 0.9fr 1fr; gap: 10px;">
+                                            <div>
+                                                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                    निकाय का प्रकार <span style="color: #EF4444;">*</span>
+                                                </label>
+                                                <select id="pUploadBodyType" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC; color: #1E293B;" required>
+                                                    <option value="gram_panchayat">🌾 ग्राम पंचायत</option>
+                                                    <option value="nagar_panchayat" selected>🏙️ नगर पंचायत</option>
+                                                    <option value="nagar_palika">🏢 नगर पालिका परिषद</option>
+                                                    <option value="nagar_nigam">🏛️ नगर निगम</option>
+                                                    <option value="other">🏛️ अन्य स्थानीय निकाय</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                    पंचायत / निकाय का नाम <span style="color: #EF4444;">*</span>
+                                                </label>
+                                                <input type="text" id="pUploadBodyName" placeholder="उदा० बबराला या सिधौली" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC; color: #1E293B;" required>
+                                            </div>
+                                            <div>
+                                                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                    जिला (District)
+                                                </label>
+                                                <input type="text" id="pUploadDistrict" placeholder="उदा० सम्भल" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC; color: #1E293B;">
+                                            </div>
+                                            <div>
+                                                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                    स्कैनिंग इंजन
+                                                </label>
+                                                <select id="pUploadEngine" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC; color: #1E293B;">
+                                                    <option value="auto" selected>⚡ उच्च क्वालिटी AI ऑटो-स्कैन (300 DPI Micro-OCR)</option>
+                                                    <option value="ulb">राज्य निर्वाचन आयोग (डिजिटल 2-कॉलम)</option>
+                                                    <option value="ocr">पूर्ण OCR स्कैन (Scanned Image)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multi-Part Pre-scan Section -->
+                                    <div id="pMultiPartsSection" style="border-top: 1.5px dashed #CBD5E1; padding-top: 12px; margin-top: 4px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                                            <div>
+                                                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.92rem; font-weight: 700; color: #1E1B4B;">
+                                                    <i data-lucide="layers" style="width: 17px; height: 17px; color: #4338CA;"></i>
+                                                    <span>📑 पहचानी गई भाग संख्याएं व मतदान स्थल (<span id="pMultiPartsCount" style="color: #4338CA;">1</span> भाग)</span>
+                                                </div>
+                                                <p style="margin: 2px 0 0 0; font-size: 0.77rem; color: #64748B;">
+                                                    एक PDF में कई भाग संख्याएं हो सकती हैं। स्कैन शुरू करने से पहले प्रत्येक भाग व मतदान स्थल को यहाँ चेक/एडिट करें:
+                                                </p>
+                                            </div>
+                                            <button type="button" onclick="addPanchayatPartBlock();" class="btn-secondary" style="padding: 5px 12px; font-size: 0.8rem; background: #EEF2FF; border: 1px solid #C7D2FE; color: #4338CA; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 700;">
+                                                <i data-lucide="plus" style="width: 14px; height: 14px;"></i> ➕ नया भाग जोड़ें
+                                            </button>
+                                        </div>
+
+                                        <!-- Container for dynamically rendered Part Cards -->
+                                        <div id="pPartsConfigContainer" style="display: flex; flex-direction: column; gap: 10px;">
+                                            <!-- Dynamically filled by app.js renderPanchayatPartBlocks() -->
+                                        </div>
+                                    </div>
+
+                                    <!-- Action Button -->
+                                    <div style="margin-top: 6px;">
+                                        <button type="submit" id="btnStartPanchayatScan" class="btn-primary" style="width: 100%; padding: 12px; font-size: 1rem; font-weight: 700; background: #4338CA; border: none; border-radius: 8px; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(67, 56, 202, 0.25);">
+                                            <i data-lucide="play" style="width: 18px; height: 18px;"></i>
+                                            <span>स्कैन प्रारंभ करें व अलग टेबल में सेव करें</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Live Console & Progress Card -->
+                        <div class="section-card" style="background: white; border-radius: 12px; padding: 24px; border: 1px solid #E2E8F0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid #F1F5F9;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 36px; height: 36px; border-radius: 8px; background: #F0FDF4; color: #16A34A; display: flex; align-items: center; justify-content: center;">
+                                        <i data-lucide="terminal" style="width: 20px; height: 20px;"></i>
+                                    </div>
+                                    <div>
+                                        <h3 style="margin: 0; font-size: 1.1rem; color: #1E293B;">2. लाइव स्कैन स्थिति व लॉग</h3>
+                                        <p style="margin: 2px 0 0 0; font-size: 0.82rem; color: #64748B;">प्रोसेसिंग की वास्तविक समय प्रगति</p>
+                                    </div>
+                                </div>
+                                <span id="pScanStatusPill" style="padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; background: #F1F5F9; color: #64748B;">
+                                    तैयार (Idle)
+                                </span>
+                            </div>
+
+                            <!-- Progress Bar Container -->
+                            <div style="margin-bottom: 16px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">
+                                    <span id="pScanProgressLabel">प्रगति: 0%</span>
+                                    <span id="pScanPageLabel">पेज: 0 / 0</span>
+                                </div>
+                                <div style="width: 100%; height: 10px; background: #E2E8F0; border-radius: 6px; overflow: hidden;">
+                                    <div id="pScanProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #4338CA, #6366F1); transition: width 0.3s ease;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Stats summary during scan -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
+                                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px;">
+                                    <div style="font-size: 0.78rem; color: #64748B; font-weight: 600;">निकाले गए मतदाता</div>
+                                    <div id="pScanLiveVoterCount" style="font-size: 1.35rem; font-weight: 700; color: #4338CA; margin-top: 2px;">0</div>
+                                </div>
+                                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px;">
+                                    <div style="font-size: 0.78rem; color: #64748B; font-weight: 600;">वर्तमान स्थिति</div>
+                                    <div id="pScanLiveStatusMsg" style="font-size: 0.88rem; font-weight: 600; color: #1E293B; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">प्रतीक्षारत...</div>
+                                </div>
+                            </div>
+
+                            <!-- Log Terminal Window -->
+                            <div style="flex: 1; min-height: 200px; max-height: 280px; background: #0F172A; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.82rem; color: #38BDF8; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;" id="pScanLogTerminal">
+                                <div style="color: #94A3B8;">[सिस्टम तैयार] कृपया बाएँ से फ़ाइल चुनकर 'स्कैन प्रारंभ करें' दबाएँ...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 2: SCANNED VOTERS DATABASE TABLE -->
+                <div id="panchayatSubViewVoters" style="display: none;">
+                    <!-- KPI Metric Badges -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px;">
+                        <div class="stat-card" style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid #4338CA;">
+                            <div style="font-size: 0.82rem; color: #64748B; font-weight: 600;">कुल पंचायत मतदाता</div>
+                            <div id="pKpiTotalVoters" style="font-size: 1.6rem; font-weight: 800; color: #1E293B; margin-top: 4px;">0</div>
+                        </div>
+                        <div class="stat-card" style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid #2563EB;">
+                            <div style="font-size: 0.82rem; color: #64748B; font-weight: 600;">पुरुष मतदाता</div>
+                            <div id="pKpiMaleVoters" style="font-size: 1.6rem; font-weight: 800; color: #2563EB; margin-top: 4px;">0</div>
+                        </div>
+                        <div class="stat-card" style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid #DB2777;">
+                            <div style="font-size: 0.82rem; color: #64748B; font-weight: 600;">महिला मतदाता</div>
+                            <div id="pKpiFemaleVoters" style="font-size: 1.6rem; font-weight: 800; color: #DB2777; margin-top: 4px;">0</div>
+                        </div>
+                        <div class="stat-card" style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid #16A34A;">
+                            <div style="font-size: 0.82rem; color: #64748B; font-weight: 600;">कुल भाग संख्याएं (बूथ)</div>
+                            <div id="pKpiParts" style="font-size: 1.6rem; font-weight: 800; color: #16A34A; margin-top: 4px;">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Filter Toolbar -->
+                    <div class="section-card" style="background: white; border-radius: 12px; padding: 18px 20px; border: 1px solid #E2E8F0; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; flex: 1; min-width: 320px;">
+                                <!-- Body Filter -->
+                                <select id="pFilterBody" onchange="loadPanchayatVoters(1);" style="padding: 9px 12px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC; color: #1E293B; min-width: 150px;">
+                                    <option value="">सभी निकाय / पंचायत</option>
+                                </select>
+
+                                <!-- Ward Filter -->
+                                <select id="pFilterWard" onchange="loadPanchayatVoters(1);" style="padding: 9px 12px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC; color: #1E293B; min-width: 110px;">
+                                    <option value="">सभी वार्ड</option>
+                                </select>
+
+                                <!-- Part No Filter (भाग संख्या फ़िल्टर) -->
+                                <select id="pFilterPart" onchange="loadPanchayatVoters(1);" style="padding: 9px 12px; border-radius: 8px; border: 1.5px solid #6366F1; font-size: 0.88rem; background: #EEF2FF; color: #3730A3; font-weight: 600; min-width: 130px;" title="भाग संख्या अनुसार फ़िल्टर करें">
+                                    <option value="">सभी भाग संख्या</option>
+                                </select>
+
+                                <!-- Sorting Control (सॉर्टिंग) -->
+                                <select id="pSortBy" onchange="loadPanchayatVoters(1);" style="padding: 9px 12px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC; color: #1E293B; min-width: 160px;" title="सॉर्टिंग का आधार">
+                                    <option value="part_serial" selected>🔢 भाग सं० + सरल क्र०</option>
+                                    <option value="serial_no">📄 केवल सरल क्रमांक</option>
+                                    <option value="name">👤 नामानुसार (A-Z)</option>
+                                    <option value="house_no">🏠 मकान संख्यानुसार</option>
+                                    <option value="age">🎂 आयु अनुसार</option>
+                                </select>
+
+                                <!-- Sort Order (क्रम) -->
+                                <select id="pSortOrder" onchange="loadPanchayatVoters(1);" style="padding: 9px 10px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC; color: #1E293B;" title="आरोही / अवरोही क्रम">
+                                    <option value="asc" selected>⬆️ आरोही (ASC)</option>
+                                    <option value="desc">⬇️ अवरोही (DESC)</option>
+                                </select>
+
+                                <!-- Gender Filter -->
+                                <select id="pFilterGender" onchange="loadPanchayatVoters(1);" style="padding: 9px 12px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC; color: #1E293B;">
+                                    <option value="">सभी लिंग</option>
+                                    <option value="M">केवल पुरुष</option>
+                                    <option value="F">केवल महिला</option>
+                                    <option value="O">अन्य</option>
+                                </select>
+
+                                <!-- Search Input -->
+                                <div style="position: relative; flex: 1; min-width: 200px;">
+                                    <input type="text" id="pSearchInput" placeholder="नाम, संबंधी, भाग या मकान से खोजें..." onkeydown="if(event.key==='Enter') loadPanchayatVoters(1);" style="width: 100%; padding: 9px 12px 9px 34px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC;">
+                                    <i data-lucide="search" style="position: absolute; left: 10px; top: 10px; width: 16px; height: 16px; color: #94A3B8;"></i>
+                                </div>
+
+                                <button class="btn-primary" onclick="loadPanchayatVoters(1);" style="padding: 9px 16px; border-radius: 8px; font-size: 0.88rem; background: #4338CA; border: none; color: white; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <i data-lucide="search" style="width: 14px; height: 14px;"></i> खोजें
+                                </button>
+                                <button class="btn-secondary" onclick="resetPanchayatFilters();" style="padding: 9px 14px; border-radius: 8px; font-size: 0.88rem; background: #F1F5F9; border: 1px solid #CBD5E1; color: #475569; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <i data-lucide="rotate-ccw" style="width: 14px; height: 14px;"></i> रीसेट
+                                </button>
+                            </div>
+
+                            <!-- Action Buttons: Search Page Link, Local AI Enhancer, Bulk Edit, Excel Export & Delete Controls -->
+                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <button onclick="openPanchayatBulkEditModal();" class="btn-secondary" style="padding: 9px 14px; border-radius: 8px; font-size: 0.85rem; background: #EEF2FF; border: 1.5px solid #818CF8; color: #3730A3; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700; box-shadow: 0 1px 3px rgba(99,102,241,0.15);" title="वार्ड सं०, भाग सं०, निकाय नाम, मतदान स्थल आदि को बल्क में बदलें">
+                                    <i data-lucide="edit-3" style="width: 15px; height: 15px; color: #4F46E5;"></i> ✍️ बल्क विवरण बदलें (Ward/Part/Station)
+                                </button>
+                                <button onclick="exportFilteredPanchayatVoters();" class="btn-secondary" style="padding: 9px 14px; border-radius: 8px; font-size: 0.85rem; background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600;" title="वर्तमान फिल्टर व भाग संख्या अनुसार Excel सूची डाउनलोड करें">
+                                    <i data-lucide="file-spreadsheet" style="width: 15px; height: 15px; color: #059669;"></i> 📥 Excel एक्सपोर्ट
+                                </button>
+                                <a href="/panchayat-search" target="_blank" class="btn-secondary" style="padding: 9px 14px; border-radius: 8px; font-size: 0.85rem; background: #EEF2FF; border: 1px solid #C7D2FE; color: #4338CA; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; font-weight: 600;">
+                                    <i data-lucide="external-link" style="width: 14px; height: 14px;"></i> 🔍 पंचायत सर्च पोर्टल
+                                </a>
+                                <button onclick="triggerLocalAiEnhance();" class="btn-primary" id="btnLocalAiEnhance" style="padding: 9px 16px; border-radius: 8px; font-size: 0.88rem; background: linear-gradient(135deg, #059669 0%, #10B981 100%); border: none; color: white; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);" title="लोकल AI द्वारा देवनागरी फॉन्ट, नाम, संबंध व मकान नंबर को 100% शुद्ध करें">
+                                    <i data-lucide="sparkles" style="width: 15px; height: 15px;"></i> 🤖 लोकल AI से सम्पूर्ण डेटा शुद्ध करें
+                                </button>
+                                <button onclick="deleteFilteredPanchayatVoters();" class="btn-danger" id="btnDeletePanchayatFiltered" style="padding: 9px 14px; border-radius: 8px; font-size: 0.85rem; background: #FEF2F2; border: 1.5px solid #EF4444; color: #DC2626; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700; box-shadow: 0 1px 3px rgba(239, 68, 68, 0.15);" title="वर्तमान फ़िल्टर (निकाय/वार्ड/भाग/सर्च/लिंग) में आ रहे सभी मतदाताओं को एक साथ हटाएं">
+                                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> 🗑️ फ़िल्टर किए गए मतदाता हटाएं (<span id="pFilteredCountBadge">0</span>)
+                                </button>
+                                <button onclick="deletePanchayatSelectedBody();" class="btn-danger" id="btnDeletePanchayatBody" style="padding: 9px 14px; border-radius: 8px; font-size: 0.85rem; background: #FEE2E2; border: 1px solid #FCA5A5; color: #DC2626; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600;" title="ड्रॉपडाउन में चुने गए निकाय का सारा डेटा हटाएँ">
+                                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> चयनित निकाय हटाएं
+                                </button>
+                                <button onclick="deletePanchayatAllRecords();" class="btn-danger" id="btnDeletePanchayatAll" style="padding: 9px 14px; border-radius: 8px; font-size: 0.85rem; background: #991B1B; border: 1px solid #7F1D1D; color: #FFFFFF; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700; box-shadow: 0 2px 6px rgba(153, 27, 27, 0.3);" title="सम्पूर्ण पंचायत डेटाबेस (सभी रिकॉर्ड्स) खाली करें">
+                                    <i data-lucide="alert-triangle" style="width: 14px; height: 14px;"></i> सम्पूर्ण डेटाबेस खाली करें
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Table Card -->
+                    <div class="section-card" style="background: white; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
+                        <div class="table-responsive" style="overflow-x: auto;">
+                            <table class="voter-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                                <thead style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0;">
+                                    <tr>
+                                        <th style="padding: 12px 14px; font-size: 0.82rem; font-weight: 700; color: #475569; width: 50px;">क्र०</th>
+                                        <th style="padding: 12px 14px; font-size: 0.82rem; font-weight: 700; color: #475569;">निकाय / पंचायत</th>
+                                        <th style="padding: 12px 14px; font-size: 0.82rem; font-weight: 700; color: #475569; width: 75px;">वार्ड सं०</th>
+                                        <th style="padding: 12px 14px; font-size: 0.82rem; font-weight: 700; color: #4338CA; width: 85px; background: #EEF2FF;">भाग सं०</th>
+                                        <th style="padding: 12px 14px; font-size: 0.82rem; font-weight: 700; color: #475569; width: 75px;">सीरियल</th>
+                                        <th style="padding: 12px 14px; font-size: 0.82rem; font-weight: 700; color: #475569;">मतदाता का नाम</th>
+                                        <th style="padding: 12px 14px; font-size: 0.82rem; font-weight: 700; color: #475569;">संबंध व संबंधी का नाम</th>
+                                        <th style="padding: 12px 14px; font-size: 0.82rem; font-weight: 700; color: #475569; width: 85px;">मकान सं०</th>
+                                        <th style="padding: 12px 14px; font-size: 0.82rem; font-weight: 700; color: #475569; width: 80px;">आयु/लिंग</th>
+                                        <th style="padding: 12px 14px; font-size: 0.82rem; font-weight: 700; color: #475569; width: 130px;">मतदान स्थल व कक्ष</th>
+                                        <th style="padding: 12px 14px; font-size: 0.82rem; font-weight: 700; color: #475569; width: 50px; text-align: center;">हटाएँ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="panchayatVotersTableBody">
+                                    <tr>
+                                        <td colspan="11" style="text-align: center; padding: 40px; color: #64748B;">
+                                            लोड हो रहा है अथवा कोई डेटा उपलब्ध नहीं है...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination Footer -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: #F8FAFC; border-top: 1px solid #E2E8F0; flex-wrap: wrap; gap: 12px;">
+                            <div style="font-size: 0.85rem; color: #64748B;" id="panchayatPaginationInfo">
+                                कुल 0 रिकॉर्ड्स
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button id="btnPanchayatPrevPage" onclick="changePanchayatPage(-1);" class="btn-secondary" style="padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; border: 1px solid #CBD5E1; background: white; cursor: pointer;" disabled>
+                                    ‹ पिछला
+                                </button>
+                                <span id="panchayatCurrentPageBadge" style="font-size: 0.85rem; font-weight: 600; padding: 6px 12px; background: #EEF2FF; color: #4338CA; border-radius: 6px;">1 / 1</span>
+                                <button id="btnPanchayatNextPage" onclick="changePanchayatPage(1);" class="btn-secondary" style="padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; border: 1px solid #CBD5E1; background: white; cursor: pointer;" disabled>
+                                    अगला ›
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 3: INTRA-LIST DUPLICATE FINDER -->
+                <div id="panchayatSubViewDuplicates" style="display: none;">
+                    <!-- Banner -->
+                    <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.05rem; color: #1E3A8A; display: flex; align-items: center; gap: 8px;">
+                                <span>🔍</span> अपनी ही पंचायत लिस्ट में आंतरिक डुप्लीकेट्स (Intra-List Duplicates)
+                            </h3>
+                            <p style="margin: 4px 0 0 0; font-size: 0.86rem; color: #1E40AF;">
+                                एक ही व्यक्ति के अलग-अलग वार्ड, भाग संख्या या सीरियल पर दोहरा पंजीकरण छांटें: समान मकान + लोकल AI, सटीक EPIC, सटीक नाम+संबंधी अथवा AI ध्वन्यात्मक (Soundex) + आयु साम्य
+                            </p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <select id="pDupFilterBody" onchange="runPanchayatDuplicatesAnalysis();" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #93C5FD; font-size: 0.88rem; background: white; color: #1E3A8A;">
+                                <option value="">सभी निकाय / पंचायत</option>
+                            </select>
+                            <select id="pDupFilterWard" onchange="runPanchayatDuplicatesAnalysis();" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #93C5FD; font-size: 0.88rem; background: white; color: #1E3A8A;">
+                                <option value="">सभी वार्ड</option>
+                            </select>
+                            <select id="pDupFilterPart" onchange="runPanchayatDuplicatesAnalysis();" style="padding: 8px 12px; border-radius: 8px; border: 1.5px solid #2563EB; font-size: 0.88rem; background: #EFF6FF; color: #1D4ED8; font-weight: 600;" title="भाग संख्या अनुसार डुप्लीकेट्स फ़िल्टर करें">
+                                <option value="">सभी भाग संख्या</option>
+                            </select>
+                            <select id="pDupFilterTier" onchange="runPanchayatDuplicatesAnalysis();" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #93C5FD; font-size: 0.88rem; background: white; color: #1E3A8A;">
+                                <option value="all">सभी डुप्लीकेट स्तर (4 Tiers)</option>
+                                <option value="epic">🔴 केवल सटीक EPIC मिलान</option>
+                                <option value="house_ai">🏠 केवल समान मकान + लोकल AI मिलान</option>
+                                <option value="name_rel">🟠 केवल सटीक नाम व संबंधी</option>
+                                <option value="ai_phonetic">🟡 केवल AI ध्वन्यात्मक + आयु (±3 वर्ष)</option>
+                            </select>
+                            <button onclick="runPanchayatDuplicatesAnalysis();" class="btn-primary" style="padding: 8px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; background: #2563EB; border: none; color: white; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <i data-lucide="sparkles" style="width: 15px; height: 15px;"></i> डुप्लीकेट्स खोजें
+                            </button>
+                            <button id="btnPanchayatDupPrintHandwritten" onclick="openHandwrittenDuplicatePrintModal('internal');" class="btn-primary" style="padding: 8px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 700; background: linear-gradient(135deg, #1E3A8A 0%, #1E1B4B 100%); border: 1px solid #172554; color: white; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; box-shadow: 0 2px 6px rgba(30, 58, 138, 0.3);" title="कार्यकर्ताओं के लिए हस्तलिखित कलम (Kalam) फॉन्ट में फील्ड जांच सूची प्रिंट करें">
+                                <i data-lucide="printer" style="width: 15px; height: 15px;"></i>
+                                <span>✍️ फील्ड जांच हस्तलिखित प्रिंट</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Duplicate KPI Cards -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px;">
+                        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; border-left: 4px solid #6366F1;">
+                            <div style="font-size: 0.78rem; color: #64748B; font-weight: 600;">कुल डुप्लीकेट समूह</div>
+                            <div id="pDupKpiTotalClusters" style="font-size: 1.5rem; font-weight: 800; color: #1E293B; margin-top: 2px;">0</div>
+                        </div>
+                        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; border-left: 4px solid #059669;">
+                            <div style="font-size: 0.78rem; color: #64748B; font-weight: 600;">🏠 समान मकान + AI मिलान</div>
+                            <div id="pDupKpiHouseAiCount" style="font-size: 1.5rem; font-weight: 800; color: #059669; margin-top: 2px;">0</div>
+                        </div>
+                        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; border-left: 4px solid #DC2626;">
+                            <div style="font-size: 0.78rem; color: #64748B; font-weight: 600;">🔴 सटीक EPIC दोहराव</div>
+                            <div id="pDupKpiEpicCount" style="font-size: 1.5rem; font-weight: 800; color: #DC2626; margin-top: 2px;">0</div>
+                        </div>
+                        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; border-left: 4px solid #EA580C;">
+                            <div style="font-size: 0.78rem; color: #64748B; font-weight: 600;">🟠 सटीक नाम+पिता दोहराव</div>
+                            <div id="pDupKpiNameCount" style="font-size: 1.5rem; font-weight: 800; color: #EA580C; margin-top: 2px;">0</div>
+                        </div>
+                        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; border-left: 4px solid #D97706;">
+                            <div style="font-size: 0.78rem; color: #64748B; font-weight: 600;">🟡 AI ध्वन्यात्मक साम्य</div>
+                            <div id="pDupKpiAiCount" style="font-size: 1.5rem; font-weight: 800; color: #D97706; margin-top: 2px;">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Duplicates Results Container -->
+                    <div id="panchayatDuplicatesContainer" style="display: flex; flex-direction: column; gap: 14px;">
+                        <div style="text-align: center; padding: 60px 20px; color: #64748B; background: white; border-radius: 12px; border: 1px dashed #CBD5E1;">
+                            <div style="font-size: 38px; margin-bottom: 10px;">📋</div>
+                            <h4 style="margin: 0 0 6px 0; color: #1E293B;">कृपया 'डुप्लीकेट्स खोजें' बटन दबाएँ</h4>
+                            <p style="margin: 0; font-size: 0.88rem;">आपकी पंचायत लिस्ट में दर्ज सभी मतदाताओं का स्वतः विश्लेषण कर डुप्लीकेट रिकॉर्ड्स समूहबद्ध प्रदर्शित होंगे।</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 4: DUAL VOTER CROSS COMPARISON WITH NAGAR PANCHAYAT -->
+                <div id="panchayatSubViewCompare" style="display: none;">
+                    <!-- Hero Header / Instructions -->
+                    <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1px solid #FDE68A; border-radius: 12px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+                        <div style="max-width: 680px;">
+                            <h3 style="margin: 0; font-size: 1.15rem; color: #92400E; display: flex; align-items: center; gap: 8px;">
+                                <span>⚖️</span> ग्राम/नगर पंचायत का मुख्य नगर पंचायत मास्टर डेटा से दोहरा मतदाता (Dual Voter) मिलान
+                            </h3>
+                            <p style="margin: 6px 0 0 0; font-size: 0.88rem; color: #B45309; line-height: 1.45;">
+                                पंचायत के मतदाताओं की तुलना नगर पंचायत के मुख्य डेटाबेस (<code>voters</code>) से 3-स्तरीय इंजन (सटीक EPIC, सटीक नाम+संबंधी, एवं AI ध्वन्यात्मक Soundex + आयु अंतर ±4 वर्ष) द्वारा की जाती है।
+                            </p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <button id="btnRunPanchayatCompare" onclick="runPanchayatCrossComparison();" class="btn-primary" style="padding: 10px 18px; border-radius: 8px; font-size: 0.92rem; font-weight: 600; background: #D97706; border: none; color: white; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(217, 119, 6, 0.25);">
+                                <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i> तुलना शुरू करें
+                            </button>
+                            <button id="btnExportDualVotersExcel" onclick="exportPanchayatDualVotersExcel();" class="btn-primary" style="padding: 10px 18px; border-radius: 8px; font-size: 0.92rem; font-weight: 600; background: #059669; border: none; color: white; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);">
+                                <i data-lucide="file-spreadsheet" style="width: 16px; height: 16px;"></i> Excel रिपोर्ट डाउनलोड (.xlsx)
+                            </button>
+                            <button id="btnPanchayatDualPrintHandwritten" onclick="openHandwrittenDuplicatePrintModal('compare');" class="btn-primary" style="padding: 10px 18px; border-radius: 8px; font-size: 0.92rem; font-weight: 700; background: linear-gradient(135deg, #1E3A8A 0%, #1E1B4B 100%); border: 1px solid #172554; color: white; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(30, 58, 138, 0.3);" title="नगर पंचायत दोहरे मतदाताओं की कार्यकर्ताओं हेतु हस्तलिखित फील्ड जांच सूची प्रिंट करें">
+                                <i data-lucide="printer" style="width: 16px; height: 16px;"></i> ✍️ फील्ड जांच हस्तलिखित प्रिंट
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Toolbar Filters -->
+                    <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <label style="font-size: 0.86rem; font-weight: 600; color: #475569;">पंचायत / निकाय फ़िल्टर:</label>
+                            <select id="pCompareBodySelect" onchange="runPanchayatCrossComparison();" style="padding: 8px 14px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC; color: #1E293B;">
+                                <option value="">सभी निकाय / पंचायत</option>
+                            </select>
+
+                            <label style="font-size: 0.86rem; font-weight: 600; color: #475569; margin-left: 10px;">मिलान प्रकार:</label>
+                            <select id="pCompareFilterTier" onchange="filterDualVotersDisplay();" style="padding: 8px 14px; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: #F8FAFC; color: #1E293B;">
+                                <option value="all">सभी दोहरे मतदाता (All Matches)</option>
+                                <option value="exact_epic">🔴 केवल 100% सटीक EPIC मिलान</option>
+                                <option value="exact_name_rel">🟠 केवल सटीक नाम व संबंधी मिलान</option>
+                                <option value="ai_phonetic_age">🔵 केवल AI ध्वन्यात्मक + आयु साम्य</option>
+                            </select>
+                        </div>
+                        <div id="pCompareShowingCount" style="font-size: 0.85rem; color: #64748B; font-weight: 600;">
+                            कुल 0 दोहरे मतदाता पाए गए
+                        </div>
+                    </div>
+
+                    <!-- KPI Cards for Cross Matching -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px;">
+                        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; border-left: 4px solid #D97706;">
+                            <div style="font-size: 0.78rem; color: #64748B; font-weight: 600;">कुल संदिग्ध दोहरे मतदाता</div>
+                            <div id="pCompareKpiTotal" style="font-size: 1.5rem; font-weight: 800; color: #D97706; margin-top: 2px;">0</div>
+                        </div>
+                        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; border-left: 4px solid #DC2626;">
+                            <div style="font-size: 0.78rem; color: #64748B; font-weight: 600;">🔴 100% सटीक EPIC मिलान</div>
+                            <div id="pCompareKpiEpic" style="font-size: 1.5rem; font-weight: 800; color: #DC2626; margin-top: 2px;">0</div>
+                        </div>
+                        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; border-left: 4px solid #EA580C;">
+                            <div style="font-size: 0.78rem; color: #64748B; font-weight: 600;">🟠 सटीक नाम+पिता मिलान</div>
+                            <div id="pCompareKpiName" style="font-size: 1.5rem; font-weight: 800; color: #EA580C; margin-top: 2px;">0</div>
+                        </div>
+                        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; border-left: 4px solid #2563EB;">
+                            <div style="font-size: 0.78rem; color: #64748B; font-weight: 600;">🔵 AI ध्वन्यात्मक + आयु साम्य</div>
+                            <div id="pCompareKpiAi" style="font-size: 1.5rem; font-weight: 800; color: #2563EB; margin-top: 2px;">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Side-by-Side Cards List -->
+                    <div id="panchayatCompareResultsContainer" style="display: flex; flex-direction: column; gap: 14px;">
+                        <div style="text-align: center; padding: 60px 20px; color: #64748B; background: white; border-radius: 12px; border: 1px dashed #CBD5E1;">
+                            <div style="font-size: 40px; margin-bottom: 12px;">⚖️</div>
+                            <h3 style="margin: 0 0 6px 0; color: #1E293B; font-size: 1.15rem;">तुलना प्रारंभ करने के लिए 'तुलना शुरू करें' दबाएँ</h3>
+                            <p style="margin: 0; font-size: 0.9rem;">पंचायत वोटर डेटाबेस के सभी वोटरों का मुख्य नगर पंचायत मास्टर डेटा से लाइव मिलान कर दोहरा पंजीकरण प्रदर्शित होगा।</p>
+                        </div>
+                    </div>
+                </div>
+            </div> <!-- /#panchayatView -->
         </main>
 
         <!-- Edit Modal -->
         <div class="modal-backdrop" id="editModal" style="display: none;">
-            <div class="modal-card">
+            <div class="modal-card modal-card-wide">
                 <div class="modal-header">
                     <div class="modal-title">
                         <i data-lucide="edit-3" id="editModalIcon"></i>
@@ -1843,87 +2600,111 @@
                     </div>
                     <button class="close-btn" id="closeModalBtn"><i data-lucide="x"></i></button>
                 </div>
-                <div class="modal-body">
-                    <form id="editVoterForm">
-                        <input type="hidden" id="editRecordIndex">
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="editSerial">क्रमांक (Serial No)</label>
-                                <input type="number" id="editSerial" required>
+                <div class="modal-body" style="max-height: 82vh; overflow-y: auto;">
+                    <div class="voter-edit-split-layout">
+                        <!-- Left Pane: Real PDF Snippet with Surrounding Context & Highlight -->
+                        <div class="pdf-crop-pane">
+                            <div class="pdf-crop-header">
+                                <div class="pdf-crop-title">
+                                    <i data-lucide="file-search" style="color: #2563eb;"></i>
+                                    <span>मूल PDF से वास्तविक फोटो (Real PDF Context)</span>
+                                </div>
+                                <span id="editCropBadge" class="pdf-crop-badge">क्रॉप लोड हो रहा है...</span>
                             </div>
-                            <div class="form-group">
-                                <label for="editEpic">EPIC नंबर (Voter ID)</label>
-                                <input type="text" id="editEpic" placeholder="वैकल्पिक (Optional)" style="font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">
+                            <div class="crop-img-container" id="editCropContainer">
+                                <div id="editCropLoading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #64748b; padding: 24px; text-align: center;">
+                                    <i data-lucide="loader" class="animate-spin" style="width: 24px; height: 24px; color: #3b82f6;"></i>
+                                    <span style="font-size: 0.85rem;">वास्तविक PDF फोटो लोड हो रही है...</span>
+                                </div>
+                                <img id="editCropImg" alt="PDF Snippet" style="display: none; width: 100%; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
                             </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="editName">मतदाता का नाम <span style="color: #ef4444;">*</span></label>
-                            <input type="text" id="editName" required placeholder="पूरा नाम दर्ज करें">
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group" style="flex: 0 0 120px;">
-                                <label for="editRelType">सम्बन्ध</label>
-                                <select id="editRelType">
-                                    <option value="पिता">पिता</option>
-                                    <option value="पति">पति</option>
-                                    <option value="माता">माता</option>
-                                    <option value="अन्य">अन्य</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="flex: 1;">
-                                <label for="editRelName">पिता/पति का नाम</label>
-                                <input type="text" id="editRelName" placeholder="सम्बन्धी का नाम">
-                            </div>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="editHouse">मकान संख्या</label>
-                                <input type="text" id="editHouse" placeholder="उदा. 45">
-                            </div>
-                            <div class="form-group">
-                                <label for="editAge">आयु (Age)</label>
-                                <input type="number" id="editAge" min="18" max="120" placeholder="आयु">
-                            </div>
-                            <div class="form-group">
-                                <label for="editGender">लिंग</label>
-                                <select id="editGender">
-                                    <option value="पुरुष">पुरुष</option>
-                                    <option value="महिला">महिला</option>
-                                    <option value="अन्य">अन्य</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Status, Deleted Reason & Page No -->
-                        <div class="form-row" style="background: #f8fafc; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; margin-bottom: 14px;">
-                            <div class="form-group" style="flex: 1;">
-                                <label for="editStatus" style="font-weight: 600;">मतदाता स्थिति (Status)</label>
-                                <select id="editStatus" class="custom-select" style="width: 100%;">
-                                    <option value="active">✓ सक्रिय (Active Voter)</option>
-                                    <option value="deleted">🚫 विलोपित / DELETED (सूची से निरस्त)</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="flex: 1;" id="editDeletedReasonGroup">
-                                <label for="editDeletedReason">विलोपित कारण (Reason)</label>
-                                <input type="text" id="editDeletedReason" placeholder="उदा० स्थानान्तरित / मृत / डुप्लीकेट">
-                            </div>
-                            <div class="form-group" style="flex: 0 0 90px;">
-                                <label for="editPageNo">पेज सं०</label>
-                                <input type="number" id="editPageNo" min="1" placeholder="पेज">
-                            </div>
-                        </div>
-
-                        <div class="modal-footer">
-                            <button type="button" class="btn-outline" id="cancelModalBtn">रद्द करें</button>
-                            <button type="submit" class="btn-primary" id="editSaveBtn">
-                                <i data-lucide="save"></i> <span id="editSaveBtnText">सुरक्षित करें</span>
+                            <button type="button" class="btn-rescan-ai" id="btnEditAiRescan" title="इस कार्ड का उच्च क्वालिटी AI री-स्कैन करें और फ़ील्ड स्वतः भरें">
+                                <i data-lucide="sparkles"></i> <span>उच्च क्वालिटी AI री-स्कैन (Auto-Fill Form)</span>
                             </button>
                         </div>
-                    </form>
+
+                        <!-- Right Pane: Edit Form -->
+                        <form id="editVoterForm">
+                            <input type="hidden" id="editRecordIndex">
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="editSerial">क्रमांक (Serial No)</label>
+                                    <input type="number" id="editSerial" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="editEpic">EPIC नंबर (Voter ID)</label>
+                                    <input type="text" id="editEpic" placeholder="वैकल्पिक (Optional)" style="font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="editName">मतदाता का नाम <span style="color: #ef4444;">*</span></label>
+                                <input type="text" id="editName" required placeholder="पूरा नाम दर्ज करें">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group" style="flex: 0 0 120px;">
+                                    <label for="editRelType">सम्बन्ध</label>
+                                    <select id="editRelType">
+                                        <option value="पिता">पिता</option>
+                                        <option value="पति">पति</option>
+                                        <option value="माता">माता</option>
+                                        <option value="अन्य">अन्य</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <label for="editRelName">पिता/पति का नाम</label>
+                                    <input type="text" id="editRelName" placeholder="सम्बन्धी का नाम">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="editHouse">मकान संख्या</label>
+                                    <input type="text" id="editHouse" placeholder="उदा. 45">
+                                </div>
+                                <div class="form-group">
+                                    <label for="editAge">आयु (Age)</label>
+                                    <input type="number" id="editAge" min="18" max="120" placeholder="आयु">
+                                </div>
+                                <div class="form-group">
+                                    <label for="editGender">लिंग</label>
+                                    <select id="editGender">
+                                        <option value="पुरुष">पुरुष</option>
+                                        <option value="महिला">महिला</option>
+                                        <option value="अन्य">अन्य</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Status, Deleted Reason & Page No -->
+                            <div class="form-row" style="background: #f8fafc; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; margin-bottom: 14px;">
+                                <div class="form-group" style="flex: 1;">
+                                    <label for="editStatus" style="font-weight: 600;">मतदाता स्थिति (Status)</label>
+                                    <select id="editStatus" class="custom-select" style="width: 100%;">
+                                        <option value="active">✓ सक्रिय (Active Voter)</option>
+                                        <option value="deleted">🚫 विलोपित / DELETED (सूची से निरस्त)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="flex: 1;" id="editDeletedReasonGroup">
+                                    <label for="editDeletedReason">विलोपित कारण (Reason)</label>
+                                    <input type="text" id="editDeletedReason" placeholder="उदा० स्थानान्तरित / मृत / डुप्लीकेट">
+                                </div>
+                                <div class="form-group" style="flex: 0 0 90px;">
+                                    <label for="editPageNo">पेज सं०</label>
+                                    <input type="number" id="editPageNo" min="1" placeholder="पेज">
+                                </div>
+                            </div>
+
+                            <div class="modal-footer" style="padding-top: 14px; border-top: 1px solid var(--border-subtle);">
+                                <button type="button" class="btn-outline" id="cancelModalBtn">रद्द करें</button>
+                                <button type="submit" class="btn-primary" id="editSaveBtn">
+                                    <i data-lucide="save"></i> <span id="editSaveBtnText">सुरक्षित करें</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1957,7 +2738,7 @@
 
         <!-- Database Voter Edit Modal (Admin Panel) -->
         <div class="modal-backdrop" id="dbEditModal" style="display: none;">
-            <div class="modal-card" style="max-width: 650px; width: 95%;">
+            <div class="modal-card modal-card-wide">
                 <div class="modal-header">
                     <div class="modal-title" style="color: var(--primary); display: flex; align-items: center; gap: 8px;">
                         <i data-lucide="user-cog" id="dbEditModalIcon"></i>
@@ -1965,8 +2746,31 @@
                     </div>
                     <button class="close-btn" id="closeDbEditModalBtn" type="button"><i data-lucide="x"></i></button>
                 </div>
-                <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
-                    <form id="dbEditVoterForm">
+                <div class="modal-body" style="max-height: 82vh; overflow-y: auto;">
+                    <div class="voter-edit-split-layout">
+                        <!-- Left Pane: Real PDF Snippet with Surrounding Context & Highlight -->
+                        <div class="pdf-crop-pane">
+                            <div class="pdf-crop-header">
+                                <div class="pdf-crop-title">
+                                    <i data-lucide="file-search" style="color: #2563eb;"></i>
+                                    <span>मूल PDF से वास्तविक फोटो (Real PDF Context)</span>
+                                </div>
+                                <span id="dbEditCropBadge" class="pdf-crop-badge">क्रॉप लोड हो रहा है...</span>
+                            </div>
+                            <div class="crop-img-container" id="dbEditCropContainer">
+                                <div id="dbEditCropLoading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #64748b; padding: 24px; text-align: center;">
+                                    <i data-lucide="loader" class="animate-spin" style="width: 24px; height: 24px; color: #3b82f6;"></i>
+                                    <span style="font-size: 0.85rem;">वास्तविक PDF फोटो लोड हो रही है...</span>
+                                </div>
+                                <img id="dbEditCropImg" alt="PDF Snippet" style="display: none; width: 100%; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                            </div>
+                            <button type="button" class="btn-rescan-ai" id="btnDbEditAiRescan" title="इस कार्ड का उच्च क्वालिटी AI री-स्कैन करें और फ़ील्ड स्वतः भरें">
+                                <i data-lucide="sparkles"></i> <span>उच्च क्वालिटी AI री-स्कैन (Auto-Fill Form)</span>
+                            </button>
+                        </div>
+
+                        <!-- Right Pane: Database Voter Edit Form -->
+                        <form id="dbEditVoterForm">
                         <input type="hidden" id="dbEditId">
 
                         <div class="form-row" style="margin-bottom: 12px;">
@@ -2096,6 +2900,7 @@
                 </div>
             </div>
         </div>
+    </div>
 
         <!-- Online Search Privacy & Restriction Modal -->
         <div class="modal-backdrop" id="privacyModal" style="display: none;">
@@ -2544,6 +3349,11 @@
                                     <strong>सुझाव:</strong> जिस सदस्य का नाम स्वतः मैच नहीं हुआ, नीचे इस मकान के वोटर लिस्ट ड्रॉपडाउन से चुनें अथवा <strong>'🌐 खोजें व लिंक करें'</strong> बटन द्वारा पूरे डेटाबेस में 1-क्लिक से लिंक करें।
                                 </span>
                             </div>
+                            <div>
+                                <button type="button" id="btnHvmAutoMapLocalAI" onclick="executeHvmAutoMapLocalAI()" style="background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; border: none; padding: 7px 16px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3); transition: all 0.2s;" title="लोकल AI पारिवारिक संबंध व ध्वन्यात्मक विश्लेषण द्वारा पूरे परिवार के सदस्यों को स्वचालित मैप करें">
+                                    <span>🤖 लोकल AI से परिवार ऑटो-मैप करें</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div style="background: white; border-radius: 8px; border: 1px solid #E2E8F0; overflow: hidden;">
@@ -2566,48 +3376,93 @@
                         </div>
                     </div>
 
-                    <!-- Tab 3: Global Candidate Search & Instant Linking -->
+                    <!-- Tab 3: Global Candidate Search & Instant Linking (Exact Online Search Engine) -->
                     <div id="hvmGlobalTabContent" style="display: none;">
                         <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; font-size: 0.85rem; color: #1E40AF; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span style="font-size: 1.2rem;">🌐</span>
                                 <span>
-                                    <strong>ग्लोबल मतदाता लिंकिंग:</strong> यदि परिवार के किसी सदस्य का वोटर कार्ड किसी अन्य मकान या दूसरे भाग में दर्ज है, तो यहाँ नाम/EPIC से खोजकर सीधे 1-क्लिक में उस सदस्य से लिंक करें।
+                                    <strong>ग्लोबल मतदाता लिंकिंग:</strong> मुख्य पेज की ऑनलाइन सर्च तकनीकी (लोकल AI ध्वन्यात्मक, देवनागरी समानीकरण व विस्तृत फ़िल्टर) द्वारा किसी भी वोटर को खोजें और तुरंत 1-क्लिक में लिंक करें।
                                 </span>
                             </div>
+                            <button type="button" id="btnToggleHvmAdvanced" onclick="toggleHvmAdvancedFilters()" style="background: white; border: 1px solid #93C5FD; color: #1D4ED8; padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>⚙️ विस्तृत फ़िल्टर</span>
+                            </button>
                         </div>
 
                         <!-- Search Controls Bar -->
-                        <div style="background: white; border-radius: 8px; border: 1px solid #CBD5E1; padding: 12px 16px; margin-bottom: 14px; display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.5fr) minmax(140px, 0.8fr) auto; gap: 10px; align-items: flex-end;">
-                            <div>
-                                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
-                                    किसे लिंक करना है? (परिवार सदस्य) *
-                                </label>
-                                <select id="hvmGlobalTargetMemberSelect" style="width: 100%; height: 38px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.85rem; background: #F8FAFC;">
-                                    <!-- Populated dynamically with family members -->
-                                </select>
-                            </div>
-                            <div>
-                                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
-                                    मतदाता खोजें (नाम / पिता / EPIC / मकान) *
-                                </label>
-                                <div style="position: relative;">
-                                    <input type="text" id="hvmGlobalSearchInput" placeholder="नाम, पिता का नाम या EPIC लिखें..." onkeydown="if(event.key==='Enter') executeHvmGlobalSearch()" style="width: 100%; height: 38px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 10px; font-size: 0.88rem;">
+                        <div style="background: white; border-radius: 8px; border: 1px solid #CBD5E1; padding: 12px 16px; margin-bottom: 14px;">
+                            <div style="display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.8fr) minmax(140px, 0.8fr) auto; gap: 10px; align-items: flex-end;">
+                                <div>
+                                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
+                                        किसे लिंक करना है? (परिवार सदस्य) *
+                                    </label>
+                                    <select id="hvmGlobalTargetMemberSelect" style="width: 100%; height: 38px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.85rem; background: #F8FAFC;">
+                                        <!-- Populated dynamically with family members -->
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
+                                        मतदाता खोजें (नाम / पिता / EPIC / मकान) *
+                                    </label>
+                                    <div style="position: relative;">
+                                        <input type="text" id="hvmGlobalSearchInput" placeholder="नाम, पिता का नाम या EPIC लिखें..." onkeydown="if(event.key==='Enter') executeHvmGlobalSearch()" style="width: 100%; height: 38px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 10px; font-size: 0.88rem;">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
+                                        भाग फ़िल्टर (वैकल्पिक)
+                                    </label>
+                                    <select id="hvmGlobalPartSelect" style="width: 100%; height: 38px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.84rem; background: #F8FAFC;">
+                                        <option value="">-- समस्त भाग (All Parts) --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <button type="button" onclick="executeHvmGlobalSearch()" id="btnExecHvmGlobalSearch" style="height: 38px; background: #2563EB; color: white; border: none; padding: 0 16px; border-radius: 6px; font-size: 0.88rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+                                        <i data-lucide="search" style="width: 16px; height: 16px;"></i>
+                                        <span>खोजें</span>
+                                    </button>
                                 </div>
                             </div>
-                            <div>
-                                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
-                                    भाग फ़िल्टर (वैकल्पिक)
-                                </label>
-                                <select id="hvmGlobalPartSelect" style="width: 100%; height: 38px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.84rem; background: #F8FAFC;">
-                                    <option value="">-- समस्त भाग (All Parts) --</option>
-                                </select>
-                            </div>
-                            <div>
-                                <button type="button" onclick="executeHvmGlobalSearch()" id="btnExecHvmGlobalSearch" style="height: 38px; background: #2563EB; color: white; border: none; padding: 0 16px; border-radius: 6px; font-size: 0.88rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
-                                    <i data-lucide="search" style="width: 16px; height: 16px;"></i>
-                                    <span>खोजें</span>
-                                </button>
+
+                            <!-- Advanced Filters Panel (Collapsible) -->
+                            <div id="hvmAdvancedPanel" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #CBD5E1; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                                <div>
+                                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #64748B; margin-bottom: 3px;">मतदाता का नाम</label>
+                                    <input type="text" id="hvmFilterName" placeholder="उदा. सुरेश" onkeydown="if(event.key==='Enter') executeHvmGlobalSearch()" style="width: 100%; height: 34px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.82rem;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #64748B; margin-bottom: 3px;">पिता/पति का नाम</label>
+                                    <input type="text" id="hvmFilterRelName" placeholder="उदा. रामगोपाल" onkeydown="if(event.key==='Enter') executeHvmGlobalSearch()" style="width: 100%; height: 34px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.82rem;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #64748B; margin-bottom: 3px;">EPIC पहचान पत्र नं०</label>
+                                    <input type="text" id="hvmFilterEpic" placeholder="उदा. YOM1234567" onkeydown="if(event.key==='Enter') executeHvmGlobalSearch()" style="width: 100%; height: 34px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.82rem;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #64748B; margin-bottom: 3px;">मकान संख्या</label>
+                                    <input type="text" id="hvmFilterHouse" placeholder="उदा. 45" onkeydown="if(event.key==='Enter') executeHvmGlobalSearch()" style="width: 100%; height: 34px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.82rem;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #64748B; margin-bottom: 3px;">लिंग</label>
+                                    <select id="hvmFilterGender" style="width: 100%; height: 34px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.82rem; background: #F8FAFC;">
+                                        <option value="all">सभी</option>
+                                        <option value="पुरुष">पुरुष</option>
+                                        <option value="महिला">महिला</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #64748B; margin-bottom: 3px;">आयु (न्यूनतम-अधिकतम)</label>
+                                    <div style="display: flex; gap: 4px;">
+                                        <input type="number" id="hvmFilterMinAge" placeholder="Min" style="width: 50%; height: 34px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 6px; font-size: 0.82rem;">
+                                        <input type="number" id="hvmFilterMaxAge" placeholder="Max" style="width: 50%; height: 34px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 6px; font-size: 0.82rem;">
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: flex-end;">
+                                    <button type="button" onclick="resetHvmAdvancedFilters()" style="height: 34px; background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; padding: 0 10px; border-radius: 6px; font-size: 0.78rem; cursor: pointer; white-space: nowrap;">
+                                        फ़िल्टर रीसेट ✕
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -2616,20 +3471,21 @@
                             <table style="width: 100%; border-collapse: collapse; font-size: 0.84rem; text-align: left;">
                                 <thead style="background: #F1F5F9; position: sticky; top: 0; z-index: 2; border-bottom: 2px solid #CBD5E1;">
                                     <tr>
-                                        <th style="padding: 8px 10px; width: 45px; text-align: center;">क्र०</th>
-                                        <th style="padding: 8px 10px; width: 70px; text-align: center;">भाग नं०</th>
-                                        <th style="padding: 8px 10px; width: 55px; text-align: center;">क्रम</th>
-                                        <th style="padding: 8px 12px;">मतदाता का नाम</th>
-                                        <th style="padding: 8px 12px;">संबंधी का नाम</th>
-                                        <th style="padding: 8px 8px; width: 70px; text-align: center;">आयु/लिंग</th>
-                                        <th style="padding: 8px 10px; width: 85px; text-align: center;">मकान सं०</th>
-                                        <th style="padding: 8px 12px; width: 110px;">पहचान पत्र (EPIC)</th>
-                                        <th style="padding: 8px 12px; width: 130px; text-align: center;">कार्यवाही</th>
+                                        <th style="padding: 8px 8px; width: 38px; text-align: center;">क्र०</th>
+                                        <th style="padding: 8px 8px; width: 68px; text-align: center;">भाग नं०</th>
+                                        <th style="padding: 8px 8px; width: 50px; text-align: center;">क्रम</th>
+                                        <th style="padding: 8px 10px;">मतदाता का नाम</th>
+                                        <th style="padding: 8px 10px;">संबंधी का नाम</th>
+                                        <th style="padding: 8px 6px; width: 65px; text-align: center;">आयु/लिंग</th>
+                                        <th style="padding: 8px 8px; width: 75px; text-align: center;">मकान</th>
+                                        <th style="padding: 8px 10px; width: 110px;">पहचान पत्र (EPIC)</th>
+                                        <th style="padding: 8px 8px; width: 125px; text-align: center;">मैच प्रकार (AI)</th>
+                                        <th style="padding: 8px 10px; width: 115px; text-align: center;">कार्यवाही</th>
                                     </tr>
                                 </thead>
                                 <tbody id="hvmGlobalResultsTableBody">
                                     <tr>
-                                        <td colspan="9" style="padding: 30px; text-align: center; color: #94A3B8;">
+                                        <td colspan="10" style="padding: 30px; text-align: center; color: #94A3B8;">
                                             कृपया ऊपर नाम या पहचान पत्र (EPIC) लिखकर 'खोजें' बटन दबाएं।
                                         </td>
                                     </tr>
@@ -3178,6 +4034,504 @@
             </div>
         </div>
 
+        <!-- Panchayat / Nikay Bulk Edit Modal -->
+        <div class="modal-overlay" id="panchayatBulkEditModal" style="display: none; z-index: 1060;">
+            <div class="modal-dialog" style="max-width: 650px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #312E81 0%, #4338CA 100%); color: white; padding: 18px 24px; border-radius: 12px 12px 0 0; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="edit-3" style="width: 22px; height: 22px; color: #C7D2FE;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: white;">✍️ पंचायत / निकाय मतदाता बल्क विवरण संपादन</h3>
+                            <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #E0E7FF;">वार्ड सं०, भाग सं०, निकाय नाम, मतदान स्थल आदि को एक साथ बदलें</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-icon" onclick="closePanchayatBulkEditModal()" style="color: white; background: rgba(255,255,255,0.1); border: none; border-radius: 8px; cursor: pointer; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
+                        <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                    </button>
+                </div>
+
+                <div class="modal-body" style="padding: 20px 24px; overflow-y: auto; flex: 1; background: #F8FAFC;">
+                    <!-- Scope Notification -->
+                    <div style="background: #EFF6FF; border: 1.5px solid #BFDBFE; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
+                        <div style="font-size: 0.88rem; font-weight: 700; color: #1E40AF; margin-bottom: 4px;">
+                            🎯 बल्क अपडेट का दायरा (Scope):
+                        </div>
+                        <div style="font-size: 0.82rem; color: #1E3A8A; line-height: 1.5;" id="pBulkEditScopeSummary">
+                            वर्तमान में चुने गए फ़िल्टर (निकाय / वार्ड / भाग) के मतदाताओं पर यह बदलाव लागू होगा।
+                        </div>
+                    </div>
+
+                    <form id="panchayatBulkEditForm" onsubmit="event.preventDefault(); submitPanchayatBulkEdit();">
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <!-- New Body Type & Body Name -->
+                            <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 12px;">
+                                <div>
+                                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                        नया निकाय प्रकार (Body Type)
+                                    </label>
+                                    <select id="pBulkNewBodyType" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: white;">
+                                        <option value="">(कोई बदलाव नहीं)</option>
+                                        <option value="gram_panchayat">🌾 ग्राम पंचायत</option>
+                                        <option value="nagar_panchayat">🏙️ नगर पंचायत</option>
+                                        <option value="nagar_palika">🏢 नगर पालिका परिषद</option>
+                                        <option value="nagar_nigam">🏛️ नगर निगम</option>
+                                        <option value="other">🏛️ अन्य स्थानीय निकाय</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                        नया निकाय का नाम
+                                    </label>
+                                    <input type="text" id="pBulkNewBodyName" placeholder="खाली छोड़ें यदि नहीं बदलना" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: white;">
+                                </div>
+                            </div>
+
+                            <!-- New Ward No, Ward Name & Part No -->
+                            <div style="display: grid; grid-template-columns: 0.8fr 1.2fr 1fr; gap: 12px;">
+                                <div>
+                                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                        नया वार्ड सं०
+                                    </label>
+                                    <input type="text" id="pBulkNewWardNo" placeholder="उदा० 2" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: white;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                        नया वार्ड का नाम
+                                    </label>
+                                    <input type="text" id="pBulkNewWardName" placeholder="उदा० गौतमबुद्ध नगर" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: white;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.82rem; font-weight: 700; color: #4338CA; margin-bottom: 4px;">
+                                        नई भाग संख्या (Part No)
+                                    </label>
+                                    <input type="text" id="pBulkNewPartNo" placeholder="उदा० 3" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 2px solid #6366F1; font-size: 0.9rem; font-weight: 700; background: #EEF2FF; color: #3730A3;">
+                                </div>
+                            </div>
+                            <div style="font-size: 0.74rem; color: #4338CA; font-weight: 600; margin-top: -6px;">
+                                ℹ️ निकाय की प्रत्येक सूची में भाग संख्या अनिवार्य है। यहाँ दर्ज भाग संख्या सभी लक्षित रिकॉर्ड्स में भर दी जाएगी।
+                            </div>
+
+                            <!-- New Polling Station & Booth -->
+                            <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px;">
+                                <div>
+                                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                        नया मतदान स्थल (Polling Station)
+                                    </label>
+                                    <input type="text" id="pBulkNewPollingStation" placeholder="उदा० बाबुराम सिह इ० का० बबराला" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: white;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                        नया कक्ष / मतदेय स्थल (Booth)
+                                    </label>
+                                    <input type="text" id="pBulkNewPollingBooth" placeholder="उदा० क०नं० 3" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: white;">
+                                </div>
+                            </div>
+
+                            <!-- New Mohalla -->
+                            <div>
+                                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                    नया मौहल्ला / क्षेत्र (Mohalla)
+                                </label>
+                                <input type="text" id="pBulkNewMohalla" placeholder="उदा० बाबुराम सिह इ० का० के सामने का भाग" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #CBD5E1; font-size: 0.88rem; background: white;">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer" style="padding: 14px 24px; background: white; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center;">
+                    <button type="button" class="btn-outline" onclick="closePanchayatBulkEditModal()" style="padding: 8px 18px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        रद्द करें
+                    </button>
+                    <button type="button" class="btn-primary" id="btnSubmitPanchayatBulkEdit" onclick="submitPanchayatBulkEdit()" style="padding: 9px 24px; font-size: 0.9rem; font-weight: 700; border-radius: 8px; background: #4338CA; border: none; color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(67, 56, 202, 0.25);">
+                        <i data-lucide="check" style="width: 16px; height: 16px;"></i>
+                        <span>बल्क अपडेट लागू करें</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nikay / Panchayat Single Voter Edit with Real Electoral Roll Crop Modal -->
+        <div class="modal-overlay" id="nikayVoterEditModal" style="display: none; z-index: 1070;" onclick="if (event.target === this) closeNikayVoterEditModal();">
+            <div class="modal-dialog" style="max-width: 1120px; width: 96%; max-height: 94vh; display: flex; flex-direction: column; background: #F8FAFC; border-radius: 14px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
+                <!-- Modal Header -->
+                <div class="modal-header" style="background: linear-gradient(135deg, #1E1B4B 0%, #4338CA 100%); color: white; padding: 16px 24px; border-radius: 14px 14px 0 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #6366F1;">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                            ✍️
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 8px;">
+                                <span>निकाय मतदाता विवरण संपादन व मूल सूची सत्यापन</span>
+                                <span id="nikayModalVoterSerialBadge" style="background: #FEF08A; color: #854D0E; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: 800;">क्र० सं० -</span>
+                            </h3>
+                            <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #C7D2FE;">वास्तविक सूची का संदर्भ देखें (ऊपर-नीचे 2-2 मतदाता) एवं उच्च-क्वालिटी AI स्कैन से फॉर्म स्वतः भरें</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-icon" onclick="closeNikayVoterEditModal()" style="color: white; background: rgba(255,255,255,0.1); border: none; border-radius: 8px; cursor: pointer; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
+                        <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                    </button>
+                </div>
+
+                <!-- Modal Body: 2-Column Split (Left = Crop, Right = Form) -->
+                <div class="modal-body" style="padding: 18px; overflow-y: auto; flex: 1; background: #F8FAFC;">
+                    <div style="display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; align-items: start;">
+                        
+                        <!-- Left Column: Real Voter List Crop & Preview -->
+                        <div style="background: white; border: 1.5px solid #E2E8F0; border-radius: 12px; padding: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #F1F5F9; padding-bottom: 10px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 0.9rem; font-weight: 700; color: #1E293B;">📄 वास्तविक वोटर लिस्ट क्रॉप</span>
+                                    <span style="background: #EFF6FF; color: #1D4ED8; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">±2 मतदाता संदर्भ</span>
+                                </div>
+                                <div id="nikayCropMetaBadge" style="font-size: 0.76rem; color: #64748B; font-weight: 500;">
+                                    लोड हो रहा है...
+                                </div>
+                            </div>
+
+                            <!-- Legend / Context Hint -->
+                            <div style="background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; padding: 6px 10px; font-size: 0.75rem; color: #475569; display: flex; align-items: center; justify-content: space-between;">
+                                <span>🔴 <strong>लाल बॉर्डर:</strong> लक्षित मतदाता</span>
+                                <span>↕️ <strong>ऊपर-नीचे:</strong> परिवार / पड़ोस के संदर्भ मतदाता</span>
+                            </div>
+
+                            <!-- Image Container -->
+                            <div id="nikayCropContainer" style="position: relative; min-height: 240px; max-height: 480px; overflow: auto; background: #0F172A; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #CBD5E1;">
+                                <!-- Loading Spinner -->
+                                <div id="nikayCropSpinner" style="display: flex; flex-direction: column; align-items: center; gap: 8px; color: #94A3B8; padding: 40px 20px;">
+                                    <div class="loading-spinner"></div>
+                                    <span style="font-size: 0.82rem;">मूल सूची का हाई-क्वालिटी क्रॉप लोड हो रहा है...</span>
+                                </div>
+                                <!-- Fallback if no PDF -->
+                                <div id="nikayCropFallback" style="display: none; padding: 30px 20px; text-align: center; color: #E2E8F0;">
+                                    <i data-lucide="file-question" style="width: 36px; height: 36px; margin-bottom: 8px; color: #94A3B8;"></i>
+                                    <div style="font-size: 0.88rem; font-weight: 600;">मूल PDF फाइल सर्वर पर उपलब्ध नहीं है।</div>
+                                    <div style="font-size: 0.76rem; color: #94A3B8; margin-top: 4px;">आप सीधे दाईं ओर दिए गए फॉर्म से मैनुअल संपादन कर सकते हैं।</div>
+                                </div>
+                                <!-- Cropped Image -->
+                                <img id="nikayCropImg" src="" alt="Real Voter List Crop" style="display: none; max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s;" />
+                            </div>
+
+                            <!-- Zoom / View Toolbar -->
+                            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: #64748B;">
+                                <div style="display: flex; gap: 6px;">
+                                    <button type="button" onclick="zoomNikayCrop(0.2)" class="btn-secondary" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px;" title="बड़ा करें">🔍 +</button>
+                                    <button type="button" onclick="zoomNikayCrop(-0.2)" class="btn-secondary" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px;" title="छोटा करें">🔍 -</button>
+                                    <button type="button" onclick="resetNikayCropZoom()" class="btn-secondary" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px;" title="सामान्य आकार">रीसेट</button>
+                                    <button type="button" onclick="openNikayCropFullscreen()" class="btn-secondary" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px;" title="पूरा चित्र देखें">पूरा देखें ↗</button>
+                                </div>
+                                <span style="font-style: italic;">300 DPI अल्ट्रा क्लैरिटी</span>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Edit Form & AI Re-Scan Button -->
+                        <div style="background: white; border: 1.5px solid #E2E8F0; border-radius: 12px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 14px;">
+                            
+                            <!-- One-Click AI High-Quality Re-Scan Button -->
+                            <div style="background: linear-gradient(135deg, #EEF2FF 0%, #FAF5FF 100%); border: 1.5px solid #C7D2FE; border-radius: 10px; padding: 12px;">
+                                <button type="button" id="btnNikayRescanVoter" onclick="rescanCurrentNikayVoter()" style="width: 100%; padding: 10px 16px; font-size: 0.92rem; font-weight: 700; border-radius: 8px; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25); transition: all 0.2s ease;">
+                                    <i data-lucide="scan-text" style="width: 18px; height: 18px;"></i>
+                                    <span id="btnNikayRescanText">⚡ उच्च क्वालिटी से पुनः स्कैन करें (AI Auto-Fill)</span>
+                                </button>
+                                <div style="font-size: 0.75rem; color: #4338CA; text-align: center; margin-top: 6px; line-height: 1.4;">
+                                    💡 <em>यह बटन मूल PDF कार्ड को 300 DPI पर दोबारा स्कैन कर नीचे के फॉर्म को सही डेटा से स्वतः भर देता है।</em>
+                                </div>
+                            </div>
+
+                            <!-- Edit Form Fields -->
+                            <form id="nikayVoterEditForm" onsubmit="event.preventDefault(); saveNikayVoterEdit();">
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    
+                                    <!-- Full Name -->
+                                    <div>
+                                        <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                            निर्वाचक / मतदाता का नाम *
+                                        </label>
+                                        <input type="text" id="nEditName" required placeholder="मतदाता का नाम भरें" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 10px; font-size: 0.92rem; font-weight: 600; color: #0F172A; transition: border-color 0.2s;">
+                                    </div>
+
+                                    <!-- Relation Type & Relative Name -->
+                                    <div style="display: grid; grid-template-columns: 120px 1fr; gap: 10px;">
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                संबंधी प्रकार
+                                            </label>
+                                            <select id="nEditRelType" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 8px; font-size: 0.88rem; font-weight: 600; background: white;">
+                                                <option value="पिता">पिता</option>
+                                                <option value="पति">पति</option>
+                                                <option value="माता">माता</option>
+                                                <option value="अन्य">अन्य</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                पिता / पति / माता का नाम
+                                            </label>
+                                            <input type="text" id="nEditRelName" placeholder="संबंधी का नाम भरें" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 10px; font-size: 0.9rem; font-weight: 600; color: #0F172A; transition: border-color 0.2s;">
+                                        </div>
+                                    </div>
+
+                                    <!-- House No, Age, Gender -->
+                                    <div style="display: grid; grid-template-columns: 1fr 90px 120px; gap: 10px;">
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                मकान नं०
+                                            </label>
+                                            <input type="text" id="nEditHouseNo" placeholder="उदा० 12 या 29ख" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 10px; font-size: 0.88rem; font-weight: 600; color: #0F172A; transition: border-color 0.2s;">
+                                        </div>
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                आयु
+                                            </label>
+                                            <input type="number" id="nEditAge" min="18" max="130" placeholder="आयु" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 8px; font-size: 0.88rem; font-weight: 600; color: #0F172A; text-align: center; transition: border-color 0.2s;">
+                                        </div>
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                लिंग
+                                            </label>
+                                            <select id="nEditGender" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 8px; font-size: 0.88rem; font-weight: 600; background: white; transition: border-color 0.2s;">
+                                                <option value="पुरुष">पुरुष</option>
+                                                <option value="महिला">महिला</option>
+                                                <option value="अन्य">अन्य</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Serial, Ward, Part -->
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                क्र० सं० (Serial No)
+                                            </label>
+                                            <input type="number" id="nEditSerial" min="1" placeholder="क्रमांक" style="width: 100%; height: 36px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.86rem; font-family: monospace; font-weight: 700;">
+                                        </div>
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                वार्ड सं०
+                                            </label>
+                                            <input type="text" id="nEditWard" placeholder="वार्ड सं०" style="width: 100%; height: 36px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.86rem;">
+                                        </div>
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                भाग सं० (Part)
+                                            </label>
+                                            <input type="text" id="nEditPart" placeholder="भाग सं०" style="width: 100%; height: 36px; border-radius: 6px; border: 1.5px solid #6366F1; padding: 0 8px; font-size: 0.86rem; font-weight: 600;">
+                                        </div>
+                                    </div>
+
+                                    <!-- Polling Booth & Mohalla -->
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                मतदान स्थल / केंद्र
+                                            </label>
+                                            <input type="text" id="nEditBooth" placeholder="मतदान स्थल" style="width: 100%; height: 36px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.84rem;">
+                                        </div>
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                                मोहल्ला / अनुभाग
+                                            </label>
+                                            <input type="text" id="nEditMohalla" placeholder="मोहल्ला / अनुभाग" style="width: 100%; height: 36px; border-radius: 6px; border: 1px solid #CBD5E1; padding: 0 8px; font-size: 0.84rem;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer" style="padding: 14px 24px; background: white; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center;">
+                    <button type="button" class="btn-outline" onclick="closeNikayVoterEditModal()" style="padding: 8px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        रद्द करें
+                    </button>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span id="nikayEditStatusHint" style="font-size: 0.8rem; color: #64748B;"></span>
+                        <button type="button" class="btn-primary" id="btnSaveNikayVoter" onclick="saveNikayVoterEdit()" style="padding: 9px 24px; font-size: 0.92rem; font-weight: 700; border-radius: 8px; background: #16A34A; border: none; color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.3);">
+                            <i data-lucide="save" style="width: 16px; height: 16px;"></i>
+                            <span id="btnSaveNikayText">💾 परिवर्तन सहेजें (Save)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deep Spot-Check Verification Modal -->
+        <div class="modal-overlay" id="spotCheckModal" style="display: none; z-index: 1050;">
+            <div class="modal-dialog" style="max-width: 900px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #1E1B4B 0%, #312E81 100%); color: white; padding: 18px 24px; border-radius: 12px 12px 0 0; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="scan-line" style="width: 22px; height: 22px; color: #A5B4FC;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: white;">🎯 गहन OCR व मतदाता सत्यापन प्रणाली (Spot-Check)</h3>
+                            <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #C7D2FE;">विशिष्ट क्रमांकों (उदा० 660, 826) का मूल PDF कार्ड से मिलान, हाई-क्वालिटी इमेज व AI सत्यापन</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-icon" onclick="closeSpotCheckModal()" style="color: white; background: rgba(255,255,255,0.1); border: none; border-radius: 8px; cursor: pointer; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
+                        <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                    </button>
+                </div>
+
+                <div class="modal-body" style="padding: 20px 24px; overflow-y: auto; flex: 1; background: #F8FAFC;">
+                    <!-- Filter/Input Form -->
+                    <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) 160px; gap: 12px; align-items: flex-end;">
+                            <div>
+                                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">भाग संख्या / वार्ड संख्या *</label>
+                                <input type="text" id="spotCheckPartInput" placeholder="उदा० 20 या 11" style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid #CBD5E1; padding: 0 10px; font-size: 0.88rem; font-weight: 600;">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 4px;">क्रमांक (अल्पविराम से अलग करें) *</label>
+                                <input type="text" id="spotCheckSerialsInput" placeholder="उदा० 660, 826" style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid #CBD5E1; padding: 0 10px; font-size: 0.88rem; font-weight: 600;">
+                            </div>
+                            <div>
+                                <button type="button" id="btnRunSpotCheck" onclick="executeSpotCheckSearch()" style="width: 100%; height: 38px; background: #4F46E5; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);">
+                                    <i data-lucide="search" style="width: 16px; height: 16px;"></i>
+                                    <span>सत्यापन करें</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: #64748B;">
+                            <span>त्वरित जांच सुझाव:</span>
+                            <button type="button" onclick="setSpotCheckPreset('11', '660, 826')" style="background: #EEF2FF; border: 1px solid #C7D2FE; color: #4338CA; border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: 0.76rem; font-weight: 600;">वार्ड 11 (660, 826)</button>
+                            <button type="button" onclick="setSpotCheckPreset('20', '660, 826')" style="background: #F1F5F9; border: 1px solid #E2E8F0; color: #475569; border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: 0.76rem;">भाग 20 (660, 826)</button>
+                        </div>
+                    </div>
+
+                    <!-- Results Container -->
+                    <div id="spotCheckResultsContainer">
+                        <div style="text-align: center; padding: 40px 20px; color: #94A3B8;">
+                            <i data-lucide="scan-line" style="width: 48px; height: 48px; margin-bottom: 12px; stroke-width: 1.5; color: #CBD5E1;"></i>
+                            <div style="font-size: 0.95rem; font-weight: 600; color: #64748B;">ऊपर भाग संख्या और क्रमांक भरकर 'सत्यापन करें' पर क्लिक करें।</div>
+                            <div style="font-size: 0.82rem; margin-top: 4px;">सिस्टम सीधे मूल PDF से वास्तविक कार्ड काटकर दिखाएगा और डेटा की शत-प्रतिशत पुष्टि करेगा।</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer" style="padding: 14px 24px; background: white; border-top: 1px solid #E2E8F0; display: flex; justify-content: flex-end;">
+                    <button type="button" class="btn-outline" onclick="closeSpotCheckModal()" style="padding: 8px 18px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        बंद करें
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Handwritten Duplicate Voter Field Verification Print Modal -->
+        <div class="modal-overlay" id="handwrittenDuplicatePrintModal" style="display: none; z-index: 1060;">
+            <div class="modal-dialog" style="max-width: 1050px; width: 96%; max-height: 94vh; display: flex; flex-direction: column; background: #F8FAFC; border-radius: 14px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
+                <!-- Modal Header -->
+                <div class="modal-header" style="background: linear-gradient(135deg, #1E3A8A 0%, #1E1B4B 100%); color: white; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #3B82F6;">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                            ✍️
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 8px;">
+                                <span>फील्ड सत्यापन जांच पत्रक (हस्तलिखित स्टाइल प्रिंट)</span>
+                                <span style="background: #FEF08A; color: #854D0E; font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; font-weight: 800;">कलम फॉन्ट (Kalam)</span>
+                            </h3>
+                            <p style="margin: 3px 0 0 0; font-size: 0.82rem; color: #BFDBFE;">कार्यकर्ताओं द्वारा घर-घर स्थलीय सत्यापन हेतु वास्तविक पेन/हैंडराइटिंग रजिस्टर प्रारूप</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-icon" onclick="closeHandwrittenDuplicatePrintModal()" style="color: white; background: rgba(255,255,255,0.1); border: none; border-radius: 8px; cursor: pointer; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
+                        <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                    </button>
+                </div>
+
+                <!-- Modal Configuration Toolbar -->
+                <div style="background: white; border-bottom: 1px solid #E2E8F0; padding: 14px 24px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: flex-end;">
+                        <!-- List Source -->
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 4px;">डुप्लीकेट सूची का स्रोत *</label>
+                            <select id="hwpSourceSelect" onchange="onHandwrittenSourceChange()" style="width: 100%; height: 36px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 8px; font-size: 0.84rem; font-weight: 600; background: #F8FAFC;">
+                                <option value="internal">1. पंचायत आंतरिक डुप्लीकेट्स (Intra-List)</option>
+                                <option value="compare">2. नगर पंचायत से दोहरे मतदाता (Cross-Compare)</option>
+                            </select>
+                        </div>
+
+                        <!-- Ward/Part Filter -->
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 4px;">भाग सं० / वार्ड फ़िल्टर</label>
+                            <select id="hwpPartFilter" onchange="renderHandwrittenPrintPreview()" style="width: 100%; height: 36px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 8px; font-size: 0.84rem; background: #F8FAFC;">
+                                <option value="all">सभी भाग संख्याएं (All Parts)</option>
+                            </select>
+                        </div>
+
+                        <!-- Worker Name (Pre-fill or blank) -->
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 4px;">कार्यकर्ता / सर्वेक्षक का नाम</label>
+                            <input type="text" id="hwpWorkerName" oninput="renderHandwrittenPrintPreview()" placeholder="खाली छोड़ें या नाम लिखें" style="width: 100%; height: 36px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 8px; font-size: 0.84rem;">
+                        </div>
+
+                        <!-- Date -->
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 4px;">जांच दिनांक</label>
+                            <input type="text" id="hwpSurveyDate" oninput="renderHandwrittenPrintPreview()" placeholder="02/10/2026" style="width: 100%; height: 36px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 8px; font-size: 0.84rem;">
+                        </div>
+
+                        <!-- Font Style -->
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 4px;">फॉन्ट शैली (Typography)</label>
+                            <select id="hwpFontStyle" onchange="renderHandwrittenPrintPreview()" style="width: 100%; height: 36px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 8px; font-size: 0.84rem; font-weight: 700; color: #1E3A8A; background: #EFF6FF;">
+                                <option value="kalam" selected>✍️ कलम (Kalam) - असली हस्तलिखित</option>
+                                <option value="system">🖥️ साधारण प्रिंट (Clear Print)</option>
+                            </select>
+                        </div>
+
+                        <!-- Pen Ink Color -->
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 4px;">स्याही का रंग (Pen Ink)</label>
+                            <select id="hwpInkColor" onchange="renderHandwrittenPrintPreview()" style="width: 100%; height: 36px; border-radius: 6px; border: 1.5px solid #CBD5E1; padding: 0 8px; font-size: 0.84rem; font-weight: 600;">
+                                <option value="blue" selected>✒️ बॉलपेन नीली स्याही (Blue)</option>
+                                <option value="black">🖊️ काली स्याही (Black)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Print Preview Container -->
+                <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1; background: #F1F5F9;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <span style="font-size: 0.82rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                            📄 वास्तविक A4 प्रिंट पूर्वावलोकन (Live Print Preview):
+                        </span>
+                        <span id="hwpRecordCountBadge" style="font-size: 0.82rem; font-weight: 700; background: #EEF2FF; color: #4338CA; padding: 3px 10px; border-radius: 12px; border: 1px solid #C7D2FE;">
+                            0 समूह
+                        </span>
+                    </div>
+
+                    <!-- Inner Paper Simulator -->
+                    <div id="handwrittenPrintPreviewContainer" style="background: white; border: 1px solid #CBD5E1; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 24px; min-height: 400px; margin: 0 auto; max-width: 900px;">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer" style="padding: 14px 24px; background: white; border-top: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                    <div style="font-size: 0.82rem; color: #64748B;">
+                        💡 <b>सुझाव:</b> प्रिंट निकालते समय ब्राउज़र में 'Save as PDF' चुनकर आप इसकी PDF भी सुरक्षित कर सकते हैं।
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button type="button" class="btn-outline" onclick="closeHandwrittenDuplicatePrintModal()" style="padding: 9px 18px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                            रद्द करें
+                        </button>
+                        <button type="button" onclick="openHandwrittenInNewTab()" style="padding: 9px 18px; border-radius: 8px; font-weight: 700; background: #F8FAFC; border: 1.5px solid #CBD5E1; color: #334155; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            <i data-lucide="external-link" style="width: 15px; height: 15px;"></i>
+                            <span>नए टैब में खोलें</span>
+                        </button>
+                        <button type="button" class="btn-primary" onclick="executeHandwrittenPrint()" style="padding: 9px 24px; font-size: 0.92rem; font-weight: 700; border-radius: 8px; background: linear-gradient(135deg, #1E40AF 0%, #1E3A8A 100%); border: none; color: white; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(30, 64, 175, 0.35);">
+                            <i data-lucide="printer" style="width: 17px; height: 17px;"></i>
+                            <span>🖨️ अभी प्रिंट निकालें (Print / PDF)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Toast Notifications -->
         <div class="toast-container" id="toastContainer"></div>
     </div>
@@ -3188,6 +4542,6 @@
     <!-- Dedicated Professional A4 Print Container (Rendered on-the-fly, visible only when printing) -->
     <div id="printSection" class="print-only-container" style="display: none;"></div>
 
-    <script src="/js/app.js?v=2.2"></script>
+    <script src="/js/app.js?v=5.1&t=20261004_git_ota_opt"></script>
 </body>
 </html>

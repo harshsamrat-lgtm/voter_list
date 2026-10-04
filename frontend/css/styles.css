@@ -85,19 +85,19 @@ body {
 
 body.initial-state,
 body.scanning-active {
-    overflow: hidden !important;
-    height: 100vh;
-    max-height: 100vh;
+    overflow-y: auto !important;
+    min-height: 100vh;
+    height: auto;
 }
 
 body.initial-state .app-container,
 body.scanning-active .app-container {
-    height: 100vh;
-    max-height: 100vh;
+    min-height: 100vh;
+    height: auto;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    padding-bottom: 8px;
+    overflow-y: visible;
+    padding-bottom: 30px;
 }
 
 body.initial-state .main-content,
@@ -105,9 +105,9 @@ body.scanning-active .main-content {
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     min-height: 0;
-    overflow: hidden;
+    overflow-y: visible;
 }
 
 body.initial-state #converterView,
@@ -115,12 +115,12 @@ body.scanning-active #converterView {
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     min-height: 0;
-    overflow: hidden;
+    overflow-y: visible;
 }
 
-@media (max-height: 500px) {
+@media (max-height: 700px) {
     body.initial-state,
     body.scanning-active {
         overflow-y: auto !important;
@@ -207,6 +207,14 @@ body.scanning-active #converterView {
     display: flex;
     align-items: center;
     gap: 12px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .status-pill {
@@ -462,7 +470,133 @@ button {
 }
 
 .file-input-hidden {
-    display: none;
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    z-index: -10 !important;
+}
+
+/* ==========================================================================
+   Voter Context Crop & High-Quality Rescan Modal Styles
+   ========================================================================== */
+.modal-card.modal-card-wide {
+    max-width: 1100px;
+    width: 95%;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.voter-edit-split-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+@media (max-width: 860px) {
+    .voter-edit-split-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.pdf-crop-pane {
+    background: #F8FAFC;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pdf-crop-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-bottom: 1px solid #E2E8F0;
+    padding-bottom: 8px;
+}
+
+.pdf-crop-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #1E293B;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pdf-crop-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: #EEF2FF;
+    color: #4338CA;
+    padding: 2px 8px;
+    border-radius: 12px;
+    border: 1px solid #C7D2FE;
+}
+
+.crop-img-container {
+    width: 100%;
+    min-height: 220px;
+    max-height: 440px;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    position: relative;
+}
+
+.crop-img-container img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+    transition: transform 0.2s ease;
+}
+
+.btn-rescan-ai {
+    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+}
+
+.btn-rescan-ai:hover {
+    background: linear-gradient(135deg, #4338CA 0%, #6D28D9 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.35);
+}
+
+.btn-rescan-ai:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .upload-icon-wrapper {
@@ -1329,6 +1463,147 @@ button {
     font-weight: 600;
 }
 
+/* Zero-Error Verification Workbench Styles (Phase 5) */
+.voter-table tbody tr.row-low-confidence {
+    background: #FEF2F2 !important;
+    border-left: 4px solid #EF4444 !important;
+}
+
+.voter-table tbody tr.row-auto-healed {
+    background: #EFF6FF !important;
+    border-left: 4px solid #3B82F6 !important;
+}
+
+.badge-low-conf {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FCA5A5;
+    cursor: help;
+}
+
+.badge-auto-healed {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: #DBEAFE;
+    color: #1E40AF;
+    border: 1px solid #93C5FD;
+    cursor: help;
+}
+
+.ulb-audit-workbench-bar {
+    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+    border: 1px solid #CBD5E1;
+    border-radius: 10px;
+    padding: 12px 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.ulb-audit-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.ulb-audit-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0F172A;
+}
+
+.ulb-audit-metrics {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ulb-audit-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: white;
+    border: 1px solid #E2E8F0;
+}
+
+.ulb-audit-pill.success {
+    background: #ECFDF5;
+    color: #065F46;
+    border-color: #A7F3D0;
+}
+
+.ulb-audit-pill.alert {
+    background: #FEF2F2;
+    color: #991B1B;
+    border-color: #FECACA;
+}
+
+.ulb-audit-pill.warning {
+    background: #FFFBEB;
+    color: #92400E;
+    border-color: #FDE68A;
+}
+
+.ulb-audit-pill.info {
+    background: #EFF6FF;
+    color: #1E40AF;
+    border-color: #BFDBFE;
+}
+
+.ulb-audit-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ulb-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid #CBD5E1;
+    background: white;
+    color: #334155;
+}
+
+.ulb-filter-btn:hover {
+    background: #F8FAFC;
+    border-color: #94A3B8;
+}
+
+.ulb-filter-btn.active {
+    background: #EF4444;
+    color: white;
+    border-color: #DC2626;
+}
+
 .status-badge-ok {
     color: var(--emerald);
     font-size: 0.8rem;
@@ -1389,19 +1664,23 @@ button {
 /* ==========================================================================
    Modal Dialog
    ========================================================================== */
-.modal-backdrop {
+.modal-backdrop, .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(28, 18, 12, 0.45);
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.65);
     backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: 1070;
     padding: 20px;
+    box-sizing: border-box;
 }
 
 .modal-card {
@@ -5019,6 +5298,108 @@ tr.row-selected {
 }
 
 /* ==========================================================================
+   AUTHENTIC DEVANAGARI HANDWRITTEN FIELD REGISTER (@media print & Kalam font)
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap');
+
+.font-kalam,
+.handwritten-mode,
+.handwritten-document {
+    font-family: 'Kalam', cursive, 'Noto Sans Devanagari', sans-serif !important;
+}
+
+.handwritten-blue {
+    color: #1a365d !important;
+}
+
+.handwritten-black {
+    color: #0f172a !important;
+}
+
+.hwp-field-card {
+    border: 1.5px solid #1a365d;
+    border-radius: 0;
+    margin-bottom: 20px;
+    background: #FFFFFF;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    overflow: hidden;
+    box-shadow: none !important;
+}
+
+.hwp-field-card-header {
+    background: #F8FAFC;
+    border-bottom: 1.5px solid #1a365d;
+    padding: 7px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.hwp-voters-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    padding: 0;
+    border-bottom: 1.5px solid #1a365d;
+}
+
+.hwp-voter-box {
+    background: #FFFFFF;
+    border: none;
+    border-right: 1.5px solid #1a365d;
+    border-radius: 0;
+    padding: 10px 14px;
+    font-size: 1.02rem;
+}
+.hwp-voter-box:last-child {
+    border-right: none;
+}
+
+.hwp-verification-section {
+    background: #FFFFFF;
+    padding: 10px 14px;
+    font-size: 0.98rem;
+}
+
+.hwp-dotted-line {
+    border-bottom: 1.5px solid #1a365d;
+    display: inline-block;
+}
+
+/* Authentic Lined Register Sheet */
+.handwritten-notebook-sheet {
+    font-family: 'Kalam', cursive, sans-serif !important;
+    color: #173b7d !important;
+    background: #FFFFFF !important;
+    position: relative;
+    padding-left: 28px;
+    border-left: 2px solid #DC2626 !important; /* Left red margin line */
+}
+
+@media print {
+    .handwritten-notebook-sheet {
+        border-left: 2px solid #DC2626 !important;
+        padding-left: 24px !important;
+    }
+    .hwp-field-card {
+        border: 1.5px solid #000000 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+    .hwp-voter-box {
+        border-right: 1.5px solid #000000 !important;
+        background: #FFFFFF !important;
+    }
+    .hwp-field-card-header {
+        border-bottom: 1.5px solid #000000 !important;
+        background: #f1f5f9 !important;
+    }
+}
+
+/* ==========================================================================
    PROFESSIONAL A4 PRINT SYSTEM (@media print & print utilities)
    Authentic Government / Electoral Roll Styling for Field & Official Use
    ========================================================================== */
@@ -5740,4 +6121,76 @@ tr.row-selected {
     font-weight: 850;
     color: #1E3A8A;
 }
+
+/* ==========================================================================
+   Handwritten Ruled Notebook Field Verification Register Styles
+   ========================================================================== */
+.handwritten-notebook-sheet {
+    font-family: 'Kalam', cursive, 'Noto Sans Devanagari', sans-serif !important;
+    background-color: #FFFFFF !important;
+    border-left: 2.5px solid #DC2626 !important;
+    padding-left: 22px !important;
+    padding-right: 14px !important;
+    position: relative;
+    color: #1A3B8B;
+    line-height: 1.5;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+.hwp-case-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    background: transparent !important;
+    border: none !important;
+    margin-bottom: 0 !important;
+}
+
+.hwp-notebook-row {
+    height: 36px !important;
+    border-top: 1.5px solid #8FAFE0 !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+    background: transparent !important;
+    overflow: visible !important;
+}
+
+.hwp-shirorekha-snap {
+    position: absolute !important;
+    left: 8px !important;
+    top: -3px !important;
+    display: inline-flex !important;
+    align-items: baseline !important;
+    white-space: nowrap !important;
+    font-size: 18.5px !important;
+    color: #1A3B8B;
+    line-height: 1 !important;
+}
+
+/* Vertical line down the center drawn like with a scale */
+.hwp-scale-vertical-divider {
+    border-right: 1.8px solid #1A3B8B !important;
+}
+
+/* Horizontal line between two cases drawn over page line like by a human */
+.hwp-case-divider-line {
+    height: 36px !important;
+    border-top: 2.2px solid #1A3B8B !important;
+    position: relative !important;
+    margin-top: 4px !important;
+    margin-bottom: 4px !important;
+    opacity: 0.92 !important;
+}
+
+.hw-word {
+    display: inline-block;
+    transform-origin: center bottom;
+}
+
+.hw-digit {
+    display: inline-block;
+}
+
+
+
 
