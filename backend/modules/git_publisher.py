@@ -98,6 +98,116 @@ class GitPublisher:
         GIT_TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(GIT_TOKEN_FILE, "w", encoding="utf-8") as f:
             json.dump(container, f)
+    @classmethod
+    def generate_dynamic_release_metadata(cls) -> Tuple[str, List[str]]:
+        """Dynamically inspects git status, diffs, and recent commits to automatically
+        generate customized Hindi release notes and bulleted changelog for *every* update."""
+        changed_files = set()
+        recent_commit_msg = ""
+
+        # 1. Inspect uncommitted / staged files
+        try:
+            status_out = subprocess.check_output(
+                "git status --short", shell=True, text=True, errors="replace"
+            ).strip()
+            if status_out:
+                for line in status_out.splitlines():
+                    parts = line.strip().split(maxsplit=1)
+                    if len(parts) == 2:
+                        changed_files.add(parts[1].replace("\\", "/").lower())
+        except Exception:
+            pass
+
+        # 2. If working tree has few files or to capture latest commit context
+        try:
+            diff_out = subprocess.check_output(
+                "git diff --name-only HEAD~1 HEAD", shell=True, text=True, errors="replace"
+            ).strip()
+            if diff_out:
+                for line in diff_out.splitlines():
+                    if line.strip():
+                        changed_files.add(line.strip().replace("\\", "/").lower())
+        except Exception:
+            pass
+
+        try:
+            recent_commit_msg = subprocess.check_output(
+                "git log -1 --pretty=%s", shell=True, text=True, errors="replace"
+            ).strip()
+        except Exception:
+            recent_commit_msg = ""
+
+        subsystems = []
+        bullets = []
+
+        # Category: OCR / High-Quality Scan
+        if any("ocr" in f or "tesseract" in f for f in changed_files):
+            subsystems.append("300 DPI उच्च क्वालिटी स्कैन")
+            bullets.append("• एडिट विंडो में वास्तविक पीडीएफ से 300 DPI उच्च क्वालिटी स्कैन व प्रीव्यू")
+            bullets.append("• OCR टेक्स्ट एक्सट्रैक्शन व वोटर कार्ड अलाइनमेंट में सुधार")
+
+        # Category: Local AI & Name Correction
+        if any("corrector" in f or "error" in f for f in changed_files):
+            subsystems.append("लोकल AI नाम सुधार")
+            bullets.append("• मतदाता का नाम व संबंधी का नाम सुधार हेतु उन्नत लोकल AI व मल्टी-पास इंजन")
+            bullets.append("• हिंदी व अंग्रेजी नाम एवं संबंधों की वर्तनी का स्वतः सुधार")
+
+        # Category: Bulk Queue & Elapsed / ETA Timer
+        if any("main.py" in f or "queue" in f for f in changed_files):
+            subsystems.append("बल्क स्कैन लाइव टाइमर")
+            bullets.append("• बल्क स्कैनिंग में लाइव बीता समय (Elapsed) व शेष समय (ETA) का स्वचालित टाइमर")
+            bullets.append("• मल्टी-कोर समानांतर प्रोसेसिंग एवं कतार प्रबंधन में सुधार")
+
+        # Category: Frontend / UI
+        if any("frontend" in f or "app.js" in f or "index.html" in f or "style.css" in f for f in changed_files):
+            subsystems.append("यूजर इंटरफेस सुधार")
+            bullets.append("• यूजर इंटरफेस, कतार तालिका व विजुअल प्रोग्रेस संकेतकों में सुधार")
+
+        # Category: Database & Search
+        if any("database" in f or "db" in f or "model" in f for f in changed_files):
+            subsystems.append("डेटाबेस व तेज सर्च")
+            bullets.append("• मतदाता डेटाबेस स्थिरता, तेज सर्च इंडेक्सिंग व डेटा सुरक्षा शील्ड")
+
+        # Category: Export (Excel / PDF)
+        if any("export" in f or "excel" in f or "pdf" in f for f in changed_files):
+            subsystems.append("एक्सेल/पीडीएफ एक्सपोर्ट")
+            bullets.append("• मतदाता सूची व मतदाता पर्ची के एक्सेल एवं पीडीएफ एक्सपोर्ट फॉर्मेटिंग में सुधार")
+
+        # Category: Cloudflare / Live Tunnel
+        if any("tunnel" in f or "cloudflare" in f for f in changed_files):
+            subsystems.append("क्लाउड लाइव शेयरिंग")
+            bullets.append("• सुरक्षित क्लाउड टनल व मोबाइल क्यूआर शेयरिंग कनेक्टिविटी में संवर्द्धन")
+
+        # Category: Installer & Deployment
+        if any("installer" in f or "publisher" in f or ".vbs" in f or ".bat" in f for f in changed_files):
+            subsystems.append("सिस्टम इंस्टॉलर व ऑटो-अपडेट")
+            bullets.append("• विंडोज इंस्टॉलर, ऑटो-अपडेट रिलीज व इन-ऐप डिप्लॉयमेंट में सुधार")
+
+        # Build dynamic notes based on detected modifications
+        if len(subsystems) == 1:
+            notes = f"{subsystems[0]} संवर्द्धन"
+        elif len(subsystems) == 2:
+            notes = f"{subsystems[0]} व {subsystems[1]}"
+        elif len(subsystems) >= 3:
+            notes = f"{subsystems[0]}, {subsystems[1]} व {subsystems[2]}"
+        else:
+            if recent_commit_msg and not recent_commit_msg.lower().startswith("release"):
+                notes = recent_commit_msg
+            else:
+                notes = "सिस्टम स्थिरता, परफॉर्मेंस व सुरक्षा संवर्द्धन अपडेट"
+
+        # Deduplicate bullets while preserving order
+        seen = set()
+        dedup_bullets = []
+        for b in bullets:
+            if b not in seen:
+                seen.add(b)
+                dedup_bullets.append(b)
+
+        # Always add standard stability/security bullet
+        dedup_bullets.append("• सुरक्षा संवर्द्धन, बग फिक्स एवं समग्र सिस्टम परफॉर्मेंस सुधार")
+
+        return notes, dedup_bullets
 
     @classmethod
     def get_git_config(cls) -> Dict[str, Any]:
@@ -121,6 +231,9 @@ class GitPublisher:
         except Exception:
             git_ready = False
 
+        # Dynamically generate context-aware notes and changelog for every update
+        default_notes, default_changelog = cls.generate_dynamic_release_metadata()
+
         return {
             "current_version": cur_version,
             "next_patch": bump_version(cur_version, "patch"),
@@ -130,7 +243,9 @@ class GitPublisher:
             "repository_url": f"https://github.com/{DEFAULT_REPO}",
             "has_saved_token": bool(saved_token),
             "token_preview": token_preview,
-            "git_cli_available": git_ready
+            "git_cli_available": git_ready,
+            "default_notes": default_notes,
+            "default_changelog": default_changelog
         }
 
     @classmethod

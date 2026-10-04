@@ -70,14 +70,18 @@ class LocalScanQualityAI:
             defects.append("मतदाता का नाम अनुपलब्ध या 2 अक्षरों से छोटा है")
             target_fields.add("name")
             score -= 30
-        elif re.search(r'[a-zA-Z]{2,}', name):
+        elif re.search(r'[a-zA-Z]{1,}', name):
             defects.append(f"नाम में अंग्रेजी अक्षरों का शोर मिला: '{name}'")
             target_fields.add("name")
             score -= 25
-        elif re.search(r'[\|!~*_\\/]', name):
+        elif re.search(r'[\|!~*_\\/\^;:+?=<>{}\[\]"\'`,]', name):
             defects.append(f"नाम में अवांछित प्रतीक चिह्न मिले: '{name}'")
             target_fields.add("name")
             score -= 15
+        elif re.search(r'^(?:नाम|निर्वाचक|पुत्र|पत्नी)\b', name):
+            defects.append("नाम में लेबल प्रीफिक्स का शोर मिला")
+            target_fields.add("name")
+            score -= 20
         elif re.search(r'(?<![क-ह])0(?![क-ह])', name):
             defects.append("नाम में शून्य (0) का अशुद्ध उपयोग मिला")
             target_fields.add("name")
@@ -88,14 +92,18 @@ class LocalScanQualityAI:
             defects.append("पिता/पति का नाम अधूरा है")
             target_fields.add("relation_name")
             score -= 25
-        elif re.search(r'[a-zA-Z]{2,}', rel_name):
+        elif re.search(r'[a-zA-Z]{1,}', rel_name):
             defects.append(f"संबंधी के नाम में अंग्रेजी अक्षरों का शोर मिला: '{rel_name}'")
             target_fields.add("relation_name")
             score -= 20
-        elif re.search(r'[\|!~*_\\/]', rel_name):
+        elif re.search(r'[\|!~*_\\/\^;:+?=<>{}\[\]"\'`,]', rel_name):
             defects.append(f"संबंधी के नाम में अवांछित प्रतीक मिले: '{rel_name}'")
             target_fields.add("relation_name")
             score -= 10
+        elif re.search(r'^(?:पिता|पति|माता|अन्य|का\s+नाम)\b', rel_name):
+            defects.append("संबंधी के नाम में लेबल प्रीफिक्स मिला")
+            target_fields.add("relation_name")
+            score -= 15
 
         # 3. Gender vs Relation Logic Check (उच्च प्राथमिकता)
         norm_rel = normalize_relation_type(rel_type)
@@ -208,15 +216,19 @@ class DualPassErrorCorrector:
 
         # 2. Name Cleaning
         curr_name = _get("name")
-        if "name" in target_fields and curr_name:
+        if curr_name:
             orig_name = curr_name
             c_name = clean_hindi_text(orig_name)
-            # Remove isolated symbols like |, !, ~, *, /, \
-            c_name = re.sub(r'[\|!~*_\\/\^]+', '', c_name)
+            # Remove isolated symbols like |, !, ~, *, /, \, ;, :, ^, +, =, ?, ", ', <, >, [, ], {, }, comma
+            c_name = re.sub(r'[\|!~*_\\/\^;:+?=<>{}\[\]"\'`,]+', '', c_name)
             # Remove stray English letters embedded inside Hindi words
             c_name = re.sub(r'[a-zA-Z]+', '', c_name)
+            # Remove label prefixes if accidentally parsed
+            c_name = re.sub(r'^(?:निर्वाचक\s+का\s+नाम|नाम)\s*[:;\-—]?\s*', '', c_name, flags=re.IGNORECASE)
             # Remove trailing numbers or isolated zeros
             c_name = re.sub(r'\s+[0०]+\s*$', '', c_name)
+            # Strip non-devanagari characters from start and end
+            c_name = re.sub(r'^[^\u0900-\u097F\w]+|[^\u0900-\u097F\w]+$', '', c_name)
             c_name = re.sub(r'\s+', ' ', c_name).strip()
             if c_name and c_name != orig_name and len(c_name) >= 2:
                 _set("name", c_name)
@@ -229,12 +241,14 @@ class DualPassErrorCorrector:
 
         # 3. Relative Name Cleaning
         curr_rel = _get("relation_name")
-        if "relation_name" in target_fields and curr_rel:
+        if curr_rel:
             orig_rel = curr_rel
             c_rel = clean_hindi_text(orig_rel)
-            c_rel = re.sub(r'[\|!~*_\\/\^]+', '', c_rel)
+            c_rel = re.sub(r'[\|!~*_\\/\^;:+?=<>{}\[\]"\'`,]+', '', c_rel)
             c_rel = re.sub(r'[a-zA-Z]+', '', c_rel)
+            c_rel = re.sub(r'^(?:पिता\s+का\s+नाम|पति\s+का\s+नाम|माता\s+का\s+नाम|अन्य\s+का\s+नाम|पिता|पति|माता)\s*[:;\-—]?\s*', '', c_rel, flags=re.IGNORECASE)
             c_rel = re.sub(r'\s+[0०]+\s*$', '', c_rel)
+            c_rel = re.sub(r'^[^\u0900-\u097F\w]+|[^\u0900-\u097F\w]+$', '', c_rel)
             c_rel = re.sub(r'\s+', ' ', c_rel).strip()
             if c_rel and c_rel != orig_rel and len(c_rel) >= 2:
                 _set("relation_name", c_rel)

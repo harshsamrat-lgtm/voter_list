@@ -1659,6 +1659,54 @@ function updateBulkOverallUI() {
         const totalVotersLive = bulkState.totalVoters + liveCurrent;
         elements.bulkTotalVotersCount.innerText = totalVotersLive.toLocaleString();
     }
+    updateBulkLiveTimer();
+}
+
+function updateBulkLiveTimer() {
+    if (!bulkState.active || !bulkState.startTime) return;
+    const elapsedSec = (Date.now() - bulkState.startTime) / 1000;
+    
+    if (elements.bulkLiveElapsedTime) {
+        elements.bulkLiveElapsedTime.innerText = formatDurationHindiHelper(elapsedSec);
+    }
+    
+    const totalFiles = bulkState.files.length;
+    if (totalFiles > 0) {
+        let completedFiles = 0;
+        let currentFileFraction = 0;
+        bulkState.files.forEach((f) => {
+            if (f.status === 'completed' || f.status === 'error') {
+                completedFiles += 1;
+            } else if (f.status === 'processing') {
+                const curPct = f.progressPercent || 0;
+                currentFileFraction = Math.max(0, Math.min(1, curPct / 100));
+            }
+        });
+        
+        const overallProgress = (completedFiles + currentFileFraction) / totalFiles;
+        
+        if (elements.bulkLiveETA) {
+            if (completedFiles >= totalFiles) {
+                elements.bulkLiveETA.innerHTML = `<span style="color: #15803D; font-weight: 700;">✅ पूर्ण (${formatDurationHindiHelper(elapsedSec)})</span>`;
+            } else if (overallProgress > 0.02 && elapsedSec >= 2) {
+                const estTotal = Math.round(elapsedSec / overallProgress);
+                const estRemaining = Math.max(0, estTotal - Math.round(elapsedSec));
+                elements.bulkLiveETA.innerHTML = `कुल: <strong>~${formatDurationHindiHelper(estTotal)}</strong> <span style="font-size: 0.78rem; font-weight: 600; color: #7C3AED; background: #EDE9FE; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">(शेष: ~${formatDurationHindiHelper(estRemaining)})</span>`;
+            } else {
+                elements.bulkLiveETA.innerText = 'गणना हो रही है...';
+            }
+        }
+    }
+    
+    // Also update active file's live elapsed time in queue table
+    if (bulkState.currentIndex < bulkState.files.length) {
+        const curItem = bulkState.files[bulkState.currentIndex];
+        if (curItem && curItem.status === 'processing' && curItem.fileStartTime) {
+            const fileElapsed = (Date.now() - curItem.fileStartTime) / 1000;
+            curItem.timeTaken = formatDurationHindiHelper(fileElapsed);
+            updateBulkRowUI(bulkState.currentIndex);
+        }
+    }
 }
 
 function renderBulkTable() {
@@ -1784,6 +1832,8 @@ async function handleBulkFiles(fileList) {
         active: true,
         cancelled: false,
         serverBulkId: null,
+        startTime: Date.now(),
+        timerInterval: null,
         files: pdfFiles.map(f => ({
             file: f,
             name: f.name,
@@ -1793,7 +1843,9 @@ async function handleBulkFiles(fileList) {
             pollingStation: '',
             votersCount: 0,
             jobId: '',
-            error: ''
+            error: '',
+            fileStartTime: null,
+            timeTaken: null
         })),
         currentIndex: 0,
         totalVoters: 0,
@@ -1810,12 +1862,21 @@ async function handleBulkFiles(fileList) {
     renderBulkTable();
     updateBulkOverallUI();
 
+    // Start live 1-second timer for elapsed time and ETA
+    if (bulkState.timerInterval) clearInterval(bulkState.timerInterval);
+    bulkState.timerInterval = setInterval(updateBulkLiveTimer, 1000);
+    updateBulkLiveTimer();
+
     showToast(`${pdfFiles.length} PDF फ़ाइलों का क्रमवार 300 DPI बल्क स्कैन प्रारंभ हो रहा है...`, 'info');
     runNextBulkFile();
 }
 
 async function runNextBulkFile() {
     if (bulkState.cancelled) {
+        if (bulkState.timerInterval) {
+            clearInterval(bulkState.timerInterval);
+            bulkState.timerInterval = null;
+        }
         showToast('बल्क स्कैन रोक दिया गया है।', 'warning');
         return;
     }
@@ -1823,6 +1884,17 @@ async function runNextBulkFile() {
     if (bulkState.currentIndex >= bulkState.files.length) {
         // All finished!
         bulkState.active = false;
+        if (bulkState.timerInterval) {
+            clearInterval(bulkState.timerInterval);
+            bulkState.timerInterval = null;
+        }
+        const totalElapsedSec = bulkState.startTime ? (Date.now() - bulkState.startTime) / 1000 : 0;
+        if (elements.bulkLiveElapsedTime) {
+            elements.bulkLiveElapsedTime.innerText = formatDurationHindiHelper(totalElapsedSec);
+        }
+        if (elements.bulkLiveETA) {
+            elements.bulkLiveETA.innerHTML = `<span style="color: #15803D; font-weight: 700;">✅ पूर्ण (${formatDurationHindiHelper(totalElapsedSec)})</span>`;
+        }
         if (elements.bulkCompleteActions) elements.bulkCompleteActions.style.display = 'flex';
         showToast(`🎉 सभी ${bulkState.files.length} फ़ाइलें सफलतापूर्वक स्कैन हो गईं! कुल ${bulkState.totalVoters.toLocaleString()} मतदाता सुरक्षित।`, 'success');
         return;
@@ -1830,6 +1902,8 @@ async function runNextBulkFile() {
 
     const item = bulkState.files[bulkState.currentIndex];
     item.status = 'processing';
+    item.fileStartTime = Date.now();
+    item.timeTaken = '0 सेकंड';
 
     if (elements.bulkCurrentFileName) elements.bulkCurrentFileName.innerText = item.name;
     if (elements.bulkLiveAssembly) elements.bulkLiveAssembly.innerText = 'पहचान हो रही है...';
@@ -1879,6 +1953,8 @@ async function runNextBulkFile() {
         item.status = 'error';
         item.error = err.message || String(err);
         item.liveVoters = 0;
+        const fSec = item.fileStartTime ? (Date.now() - item.fileStartTime) / 1000 : 0;
+        item.timeTaken = formatDurationHindiHelper(fSec);
         updateBulkRowUI(bulkState.currentIndex);
     }
 
@@ -1921,6 +1997,11 @@ function pollBulkJobUntilDone(item) {
                     item.liveVoters = job.total_voters_extracted || 0;
                     item.speed = job.speed_seconds_per_page || null;
 
+                    if (item.fileStartTime) {
+                        const curFileSec = (Date.now() - item.fileStartTime) / 1000;
+                        item.timeTaken = formatDurationHindiHelper(curFileSec);
+                    }
+
                     if (elements.bulkCurrentFileName) {
                         const speedStr = item.speed ? ` &bull; गति: ${item.speed}s/पेज` : '';
                         elements.bulkCurrentFileName.innerHTML = `${escapeHtml(item.name)} <span style="font-size: 0.82rem; font-weight: 600; color: #7C3AED; background: #EDE9FE; padding: 2px 8px; border-radius: 6px; margin-left: 6px;">पेज ${item.processedPages}/${item.totalPages} (${item.progressPercent}%)${speedStr}</span>`;
@@ -1932,6 +2013,8 @@ function pollBulkJobUntilDone(item) {
                     item.status = 'completed';
                     item.votersCount = job.total_voters_extracted || 0;
                     item.liveVoters = 0;
+                    const fTotalSec = item.fileStartTime ? (Date.now() - item.fileStartTime) / 1000 : 0;
+                    item.timeTaken = formatDurationHindiHelper(fTotalSec);
                     bulkState.totalVoters += item.votersCount;
                     if (elements.bulkCurrentFileName) {
                         elements.bulkCurrentFileName.innerText = item.name;
@@ -1944,6 +2027,8 @@ function pollBulkJobUntilDone(item) {
                     item.status = 'error';
                     item.error = job.error_message || 'स्कैनिंग त्रुटि';
                     item.liveVoters = 0;
+                    const fTotalSec = item.fileStartTime ? (Date.now() - item.fileStartTime) / 1000 : 0;
+                    item.timeTaken = formatDurationHindiHelper(fTotalSec);
                     if (elements.bulkCurrentFileName) {
                         elements.bulkCurrentFileName.innerText = item.name;
                     }
@@ -2120,6 +2205,10 @@ function cancelBulkScan() {
     if (confirm('क्या आप बल्क स्कैनिंग रोकना चाहते हैं?')) {
         bulkState.cancelled = true;
         if (bulkState.pollInterval) clearInterval(bulkState.pollInterval);
+        if (bulkState.timerInterval) {
+            clearInterval(bulkState.timerInterval);
+            bulkState.timerInterval = null;
+        }
         if (bulkState.serverBulkId) {
             adminFetch(`/api/bulk/cancel/${bulkState.serverBulkId}`, { method: 'POST' }).catch(() => {});
         }
@@ -2129,6 +2218,10 @@ function cancelBulkScan() {
 
 function resetBulkScan() {
     if (bulkState.pollInterval) clearInterval(bulkState.pollInterval);
+    if (bulkState.timerInterval) {
+        clearInterval(bulkState.timerInterval);
+        bulkState.timerInterval = null;
+    }
     bulkState.active = false;
     bulkState.cancelled = false;
     bulkState.serverBulkId = null;
@@ -10733,6 +10826,33 @@ async function openGitPublishModal() {
                     tokenBadge.style.display = 'none';
                     tokenInput.placeholder = 'ghp_... (GitHub Personal Access Token)';
                 }
+            }
+            // Auto-populate Release Notes and Changelog Bullets
+            const notesInput = document.getElementById('pubReleaseNotes');
+            const clText = document.getElementById('pubChangelogText');
+
+            if (notesInput) {
+                if (!notesInput.value || notesInput.value.trim() === '' || notesInput.dataset.autoFilled === 'true') {
+                    notesInput.value = data.default_notes || '300 DPI उच्च क्वालिटी स्कैन, लोकल AI नाम सुधार व बल्क स्कैन लाइव टाइमर';
+                    notesInput.dataset.autoFilled = 'true';
+                }
+                notesInput.oninput = () => { delete notesInput.dataset.autoFilled; };
+            }
+
+            if (clText) {
+                if (!clText.value || clText.value.trim() === '' || clText.dataset.autoFilled === 'true') {
+                    const bullets = (data.default_changelog && Array.isArray(data.default_changelog) && data.default_changelog.length > 0)
+                        ? data.default_changelog
+                        : [
+                            '• एडिट विंडो में वास्तविक पीडीएफ से 300 DPI उच्च क्वालिटी स्कैन व प्रीव्यू',
+                            '• मतदाता का नाम व संबंधी का नाम सुधार हेतु उन्नत लोकल AI व मल्टी-पास इंजन',
+                            '• बल्क स्कैनिंग में लाइव बीता समय (Elapsed) व शेष समय (ETA) का स्वचालित टाइमर',
+                            '• वास्तविक पीडीएफ क्रॉप अलाइनमेंट व सुरक्षा संवर्द्धन'
+                        ];
+                    clText.value = bullets.join('\n');
+                    clText.dataset.autoFilled = 'true';
+                }
+                clText.oninput = () => { delete clText.dataset.autoFilled; };
             }
         }
     } catch (e) {

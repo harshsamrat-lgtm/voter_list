@@ -1,25 +1,31 @@
 {
-  "version": "1.0.8",
+  "version": "1.0.9",
   "app_name": "UP Voter Seva",
   "channel": "stable",
   "release_date": "2026-10-04",
   "min_required_version": "1.0.0",
   "remote_manifest_url": "https://raw.githubusercontent.com/harshsamrat-lgtm/voter_list/main/version.json",
   "update_type": "patch",
-  "title": "UP वोटर सेवा v1.0.8 अपडेट",
-  "notes": "रिलीज v1.0.8",
+  "title": "UP वोटर सेवा v1.0.9 अपडेट",
+  "notes": "300 DPI उच्च क्वालिटी स्कैन, लोकल AI नाम सुधार व बल्क स्कैन लाइव टाइमर",
   "changelog": [
-    "आधिकारिक OTA अपडेट v1.0.8",
-    "सुरक्षा संवर्द्धन एवं प्रदर्शन में सुधार",
-    "डेटा सुरक्षा शील्ड: स्थानीय डेटाबेस सुरक्षित"
+    "• एडिट विंडो में वास्तविक पीडीएफ से 300 DPI उच्च क्वालिटी स्कैन व प्रीव्यू",
+    "• OCR टेक्स्ट एक्सट्रैक्शन व वोटर कार्ड अलाइनमेंट में सुधार",
+    "• मतदाता का नाम व संबंधी का नाम सुधार हेतु उन्नत लोकल AI व मल्टी-पास इंजन",
+    "• हिंदी व अंग्रेजी नाम एवं संबंधों की वर्तनी का स्वतः सुधार",
+    "• बल्क स्कैनिंग में लाइव बीता समय (Elapsed) व शेष समय (ETA) का स्वचालित टाइमर",
+    "• मल्टी-कोर समानांतर प्रोसेसिंग एवं कतार प्रबंधन में सुधार",
+    "• यूजर इंटरफेस, कतार तालिका व विजुअल प्रोग्रेस संकेतकों में सुधार",
+    "• विंडोज इंस्टॉलर, ऑटो-अपडेट रिलीज व इन-ऐप डिप्लॉयमेंट में सुधार",
+    "• सुरक्षा संवर्द्धन, बग फिक्स एवं समग्र सिस्टम परफॉर्मेंस सुधार"
   ],
   "patch": {
-    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.8/update-patch.zip",
+    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.9/update-patch.zip",
     "size_mb": 2.57,
-    "sha256": "0a2c4cd01f8b19d3f2cda75664b77a8a8ff70ad87e5682decb070f72f2e4f28b"
+    "sha256": "580f8dd9aecef97e314b5c2e139af88bed03f4387884ec8739ff83336fc5901b"
   },
   "full_installer": {
-    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.8/UP_Voter_Service_Setup_v1.0.exe",
+    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.9/UP_Voter_Service_Setup_v1.0.exe",
     "size_mb": 285.0,
     "sha256": ""
   }

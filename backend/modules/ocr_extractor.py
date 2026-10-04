@@ -422,7 +422,7 @@ class OCRExtractor:
             box_eng = cls._ocr_image(top_crop, lang="eng", psm=6)
             col_box_eng[r] = box_eng
 
-            body_crop = card_crop.crop((0, int(ch * 0.20), int(cw * 0.74), ch))
+            body_crop = card_crop.crop((0, int(ch * 0.10), int(cw * 0.76), ch))
             box_hin = cls._ocr_image(body_crop, lang="hin", psm=6)
             combined_box = f"{box_eng}\n{box_hin}"
 
@@ -1171,8 +1171,9 @@ class OCRExtractor:
             page_idx = max(0, min(page_no - 1, len(doc) - 1))
             page = doc[page_idx]
 
-            # High-fidelity rendering matching process_page_ocr grid
-            pix = page.get_pixmap(dpi=OCR_DPI)
+            # High-fidelity 300 DPI rendering as explicitly requested for edit re-scan & context
+            EDIT_DPI = 300
+            pix = page.get_pixmap(dpi=EDIT_DPI)
             img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
             w, h = img.size
             doc.close()
@@ -1244,7 +1245,7 @@ class OCRExtractor:
 
             rescanned_result = None
             if rescan:
-                # Target card crop alone for deep OCR
+                # Target card crop alone for deep OCR at 300 DPI
                 target_card_crop = img.crop((tx0_img, ty0_img, tx1_img, ty1_img))
                 rescanned_result = cls.rescan_single_voter_card_full(
                     card_crop=target_card_crop,
@@ -1277,7 +1278,7 @@ class OCRExtractor:
         page_no: int = 1
     ) -> Dict[str, Any]:
         """
-        Performs high-quality targeted AI / OCR re-scan on a single voter card:
+        Performs high-quality targeted AI / OCR re-scan on a single voter card at 300 DPI:
         Extracts Serial, EPIC (multi-pass Otsu + PSM 7 + RapidOCR ONNX), Name, Relation,
         House No, Age, Gender, and checks for Deletion stamps.
         Returns structured dictionary ready to auto-fill the edit form.
@@ -1360,7 +1361,8 @@ class OCRExtractor:
                 cand_epic = c_top
 
         # 2. Body Details (Hindi OCR)
-        body_crop = card_crop.crop((0, int(ch * 0.20), int(cw * 0.74), ch))
+        # Avoid clipping top matras: start from 10% height
+        body_crop = card_crop.crop((0, int(ch * 0.10), int(cw * 0.76), ch))
         body_hin = cls._ocr_image(body_crop, lang="hin", psm=6)
         body_eng = cls._ocr_image(body_crop, lang="eng", psm=6)
         combined_box = f"{top_eng}\n{body_hin}\n{body_eng}"
@@ -1373,18 +1375,53 @@ class OCRExtractor:
             box_eng=f"{top_eng}\n{body_eng}"
         )
 
+        # Multi-pass enhancement if name or relation is missing or noisy
+        if not parsed or not parsed.name or len(parsed.name) < 2 or re.search(r'[\|!~*_\\/;:]', parsed.name):
+            try:
+                body_enh = ImageEnhance.Contrast(body_crop.convert("L")).enhance(1.8)
+                body_hin_enh = cls._ocr_image(body_enh, lang="hin", psm=6)
+                p2 = UPFieldParser.parse_single_voter_box(
+                    box_text=f"{top_eng}\n{body_hin_enh}",
+                    default_serial=extracted_serial or default_serial,
+                    page_no=page_no
+                )
+                if p2 and p2.name and (not parsed.name or len(p2.name) > len(parsed.name)):
+                    parsed.name = p2.name
+                if p2 and p2.relation_name and (not parsed.relation_name or len(p2.relation_name) > len(parsed.relation_name)):
+                    parsed.relation_name = p2.relation_name
+            except Exception:
+                pass
+
+        # Apply Local AI Quality Inspection and Intelligent Correction
+        try:
+            eval_res = LocalScanQualityAI.evaluate_record_quality(parsed)
+            parsed_corr, _ = DualPassErrorCorrector.apply_intelligent_corrections(parsed, eval_res)
+            parsed = parsed_corr
+        except Exception:
+            pass
+
+        # Clean noise characters from Devanagari fields
+        def _clean_devanagari_field(text: str) -> str:
+            if not text:
+                return ""
+            cleaned = re.sub(r'^[^\u0900-\u097F\w]+|[^\u0900-\u097F\w]+$', '', text).strip()
+            cleaned = re.sub(r'^(?:निर्वाचक\s+का\s+नाम|नाम|पिता\s+का\s+नाम|पति\s+का\s+नाम|माता\s+का\s+नाम|अन्य\s+का\s+नाम)\s*[:;\-—]?\s*', '', cleaned, flags=re.IGNORECASE).strip()
+            cleaned = re.sub(r'^[^\u0900-\u097F\w]+', '', cleaned).strip()
+            return cleaned
+
+        name_val = _clean_devanagari_field(parsed.name if (parsed and parsed.name) else "")
+        rel_name_val = _clean_devanagari_field(parsed.relation_name if (parsed and parsed.relation_name) else "")
+
         # 3. Check for DELETED stamp
         is_diag, d_reason = cls.detect_diagonal_deleted_stamp(card_crop)
         is_del_txt = bool(UPFieldParser.IS_DELETED_REGEX.search(combined_box))
         is_del = is_diag or is_del_txt
         del_reason = d_reason if is_diag else ("विलोपित / DELETED" if is_del_txt else "")
 
-        name_val = parsed.name if (parsed and parsed.name) else ""
         if is_del and name_val:
             name_val = UPFieldParser.IS_DELETED_REGEX.sub("", name_val).strip()
 
         rel_type_val = parsed.relation_type if (parsed and parsed.relation_type) else "पिता"
-        rel_name_val = parsed.relation_name if (parsed and parsed.relation_name) else ""
         if is_del and rel_name_val:
             rel_name_val = UPFieldParser.IS_DELETED_REGEX.sub("", rel_name_val).strip()
 
