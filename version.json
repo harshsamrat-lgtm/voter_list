@@ -1,25 +1,25 @@
 {
-  "version": "1.0.7",
+  "version": "1.0.8",
   "app_name": "UP Voter Seva",
   "channel": "stable",
   "release_date": "2026-10-04",
   "min_required_version": "1.0.0",
   "remote_manifest_url": "https://raw.githubusercontent.com/harshsamrat-lgtm/voter_list/main/version.json",
   "update_type": "patch",
-  "title": "UP वोटर सेवा v1.0.7 अपडेट",
-  "notes": "रिलीज v1.0.7",
+  "title": "UP वोटर सेवा v1.0.8 अपडेट",
+  "notes": "रिलीज v1.0.8",
   "changelog": [
-    "आधिकारिक OTA अपडेट v1.0.7",
+    "आधिकारिक OTA अपडेट v1.0.8",
     "सुरक्षा संवर्द्धन एवं प्रदर्शन में सुधार",
     "डेटा सुरक्षा शील्ड: स्थानीय डेटाबेस सुरक्षित"
   ],
   "patch": {
-    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.7/update-patch.zip",
+    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.8/update-patch.zip",
     "size_mb": 2.57,
-    "sha256": "863c54ad5fb495c8d21a39bf729266e9ec2ad47fe2f5f9f47e18aaab292c5e85"
+    "sha256": "0a2c4cd01f8b19d3f2cda75664b77a8a8ff70ad87e5682decb070f72f2e4f28b"
   },
   "full_installer": {
-    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.7/UP_Voter_Service_Setup_v1.0.exe",
+    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.8/UP_Voter_Service_Setup_v1.0.exe",
     "size_mb": 285.0,
     "sha256": ""
   }

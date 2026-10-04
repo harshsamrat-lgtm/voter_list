@@ -31,7 +31,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .config import UPLOAD_DIR, OUTPUT_DIR, SAMPLE_DIR, FRONTEND_DIR, DATA_DIR, DB_PATH, APP_NAME, APP_VERSION, ADMIN_TOKEN
+from .config import BASE_DIR, UPLOAD_DIR, OUTPUT_DIR, SAMPLE_DIR, FRONTEND_DIR, DATA_DIR, DB_PATH, APP_NAME, APP_VERSION, ADMIN_TOKEN
 from .models.voter import VoterRecord, JobStatus, VoterStats
 from .modules.pdf_detector import PDFDetector
 from .modules.digital_extractor import DigitalVoterExtractor
@@ -4523,6 +4523,49 @@ def api_database_voter_rescan_epic(record_id: int):
         }
 
 
+def find_uploaded_pdf(source_file: str) -> Optional[str]:
+    """
+    Locates the original uploaded PDF on disk, handling UUID prefixes
+    (e.g. {UUID}_{source_file} or {UUID}_{UUID}_{source_file}).
+    Never falls back to dummy sample files.
+    """
+    if not source_file:
+        return None
+    base_src = os.path.basename(source_file).strip()
+
+    search_dirs = [UPLOAD_DIR, DATA_DIR / "uploads", BASE_DIR / "uploads", BASE_DIR]
+
+    # 1. Direct path check
+    for d in search_dirs:
+        if not d.exists():
+            continue
+        direct = d / base_src
+        if direct.exists() and direct.is_file():
+            return str(direct)
+
+    # 2. Match in directories with UUID prefix or substring
+    for d in search_dirs:
+        if not d.exists():
+            continue
+        try:
+            pdf_files = sorted(list(d.glob("*.pdf")), key=lambda p: p.stat().st_mtime, reverse=True)
+            for f in pdf_files:
+                if f.name == base_src:
+                    return str(f)
+                if f.name.endswith("_" + base_src) or f.name.endswith("-" + base_src):
+                    return str(f)
+            # Match stem substring
+            stem = Path(base_src).stem
+            if stem and len(stem) > 4:
+                for f in pdf_files:
+                    if stem in f.name:
+                        return str(f)
+        except Exception:
+            pass
+
+    return None
+
+
 class VoterContextCropRequest(BaseModel):
     job_id: Optional[str] = None
     record_index: Optional[int] = None
@@ -4570,47 +4613,33 @@ def api_voter_context_crop(
             target_page = row["page_no"] or 1
             target_serial = row["serial_no"]
             
-            # Locate PDF file
-            pdf_path = None
-            for cand in [UPLOAD_DIR / source_file, UPLOAD_DIR / os.path.basename(source_file), SAMPLE_DIR / os.path.basename(source_file)]:
-                if cand.exists() and cand.is_file():
-                    pdf_path = str(cand)
-                    break
-
-            if not pdf_path:
-                for f in UPLOAD_DIR.glob("*.pdf"):
-                    if f.name == os.path.basename(source_file):
-                        pdf_path = str(f)
-                        break
-
-            if not pdf_path:
-                # Fallback to test sample if available
-                test_sample = SAMPLE_DIR / "test_sample_up.pdf"
-                if test_sample.exists():
-                    pdf_path = str(test_sample)
+            # Locate real uploaded PDF file (NO mock/sample fallback)
+            pdf_path = find_uploaded_pdf(source_file)
 
             if not pdf_path or not os.path.exists(pdf_path):
                 return {
                     "success": False,
                     "crop_image_base64": None,
                     "rescanned": None,
-                    "message": f"मूल पीडीएफ फाइल '{source_file}' सर्वर पर नहीं मिली।"
+                    "message": f"मूल पीडीएफ फाइल '{source_file}' सर्वर पर उपलब्ध नहीं है। कृपया पीडीएफ पुनः अपलोड या स्कैन करें।"
                 }
 
-            # Determine card index on this page
-            with VoterDatabase.get_connection(purpose="read") as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT id FROM voters WHERE page_no = ? AND part_no = ? ORDER BY serial_no ASC;",
-                    (target_page, row["part_no"])
-                )
-                page_rows = cursor.fetchall()
-            
+            # In ECI rolls, 30 voters per page in row-major order:
             card_idx = 0
-            for ip, pr in enumerate(page_rows):
-                if pr["id"] == voter_id:
-                    card_idx = ip
-                    break
+            if target_serial is not None and target_serial > 0:
+                card_idx = (target_serial - 1) % 30
+            else:
+                with VoterDatabase.get_connection(purpose="read") as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "SELECT id FROM voters WHERE page_no = ? AND part_no = ? ORDER BY serial_no ASC;",
+                        (target_page, row["part_no"])
+                    )
+                    page_rows = cursor.fetchall()
+                for ip, pr in enumerate(page_rows):
+                    if pr["id"] == voter_id:
+                        card_idx = ip
+                        break
 
             res = OCRExtractor.get_voter_card_context_crop(
                 pdf_path=pdf_path,
@@ -4648,9 +4677,7 @@ def api_voter_context_crop(
         pdf_path = JOB_PDF_MAP.get(job_id)
         if not pdf_path or not os.path.exists(pdf_path):
             if job and job.filename:
-                cand = UPLOAD_DIR / job.filename
-                if cand.exists():
-                    pdf_path = str(cand)
+                pdf_path = find_uploaded_pdf(job.filename)
 
         if not pdf_path or not os.path.exists(pdf_path):
             return {
@@ -4675,14 +4702,20 @@ def api_voter_context_crop(
                         break
 
             if rec:
-                target_page = rec.page_no or 1
+                target_page = rec.page_no or target_page
                 target_serial = rec.serial_no
-                # Compute card index among all voters on this page
-                page_voters = [r for r in job.records if r.page_no == target_page]
-                if rec in page_voters:
-                    card_idx = page_voters.index(rec)
-                elif record_index is not None:
-                    card_idx = record_index % 30
+                if rec.serial_no and rec.serial_no > 0:
+                    card_idx = (rec.serial_no - 1) % 30
+                else:
+                    page_voters = [r for r in job.records if r.page_no == target_page]
+                    if rec in page_voters:
+                        card_idx = page_voters.index(rec)
+                    elif record_index is not None:
+                        card_idx = record_index % 30
+        elif target_serial and target_serial > 0:
+            card_idx = (target_serial - 1) % 30
+        elif record_index is not None:
+            card_idx = record_index % 30
 
         res = OCRExtractor.get_voter_card_context_crop(
             pdf_path=pdf_path,

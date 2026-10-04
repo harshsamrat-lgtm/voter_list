@@ -1171,56 +1171,30 @@ class OCRExtractor:
             page_idx = max(0, min(page_no - 1, len(doc) - 1))
             page = doc[page_idx]
 
-            # High-fidelity 200 DPI rendering (optimal crispness and 35ms render speed)
-            zoom = 200.0 / 72.0
-            mat = fitz.Matrix(zoom, zoom)
-            pix = page.get_pixmap(matrix=mat)
+            # High-fidelity rendering matching process_page_ocr grid
+            pix = page.get_pixmap(dpi=OCR_DPI)
             img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
             w, h = img.size
-
-            # Determine layout geometry
-            # Detect whether page has header bar with section info
-            # 1. Try vector text words first if present (0ms)
-            words = page.get_text("words")
-            voter_words = [wrd for wrd in words if wrd[1] > 55 and ("नाम" in wrd[4] or "मकान" in wrd[4])]
-            
-            top_y = None
-            bot_y = None
-            if voter_words:
-                min_w_y0 = min(wrd[1] for wrd in voter_words) * zoom
-                top_y = max(int(h * 0.05), int(min_w_y0 - 22 * zoom))
-                max_w_y1 = max(wrd[3] for wrd in voter_words) * zoom
-                bot_y = min(int(h * 0.98), int(max_w_y1 + 18 * zoom))
-
-            # 2. Pure scanned fallback: ink projection
-            if top_y is None or bot_y is None:
-                gray_arr = np.array(img.convert("L"))
-                horiz = np.mean(gray_arr < 190, axis=1)
-                
-                # Check for divider line between header and cards (around 0.07 to 0.15)
-                cands_top = [y for y in range(int(h * 0.07), int(h * 0.15)) if horiz[y] > 0.30]
-                if cands_top:
-                    top_y = cands_top[0]
-                else:
-                    top_y = int(h * HEADER_FRACTION)
-
-                cands_bot = [y for y in range(int(h * 0.84), int(h * 0.96)) if horiz[y] > 0.30]
-                if cands_bot:
-                    bot_y = cands_bot[-1]
-                else:
-                    bot_y = int(h * (1.0 - FOOTER_FRACTION))
-
             doc.close()
 
-            left_m = int(w * LEFT_MARGIN_FRACTION)
-            right_m = int(w * RIGHT_MARGIN_FRACTION)
-            usable_w = w - left_m - right_m
-            col_w = usable_w / float(NUM_COLUMNS)
-            card_h = (bot_y - top_y) / 10.0
+            # Layout margins matching process_page_ocr exactly
+            top_margin = int(h * HEADER_FRACTION)
+            bottom_margin = int(h * FOOTER_FRACTION)
+            left_margin = int(w * LEFT_MARGIN_FRACTION)
+            right_margin = int(w * RIGHT_MARGIN_FRACTION)
 
-            # Compute row and column for target card (0..29 -> row = card_index // 3, col = card_index % 3)
-            row = max(0, min(9, card_index // NUM_COLUMNS))
-            col = max(0, min(NUM_COLUMNS - 1, card_index % NUM_COLUMNS))
+            usable_width = w - left_margin - right_margin
+            col_width = usable_width / float(NUM_COLUMNS)
+            card_height = (h - top_margin - bottom_margin) / 10.0
+
+            # Determine card index and (row, col)
+            c_idx = card_index
+            if (c_idx is None or c_idx < 0) and serial_no and serial_no > 0:
+                c_idx = (serial_no - 1) % 30
+            c_idx = max(0, min(29, c_idx or 0))
+
+            row = max(0, min(9, c_idx // NUM_COLUMNS))
+            col = max(0, min(NUM_COLUMNS - 1, c_idx % NUM_COLUMNS))
 
             # Surrounding context: 1 row above and 1 row below (clamped to 0..9)
             row_start = max(0, row - 1)
@@ -1230,20 +1204,26 @@ class OCRExtractor:
             elif row == 9:
                 row_start = max(0, 7)
 
-            pad_x = 10
-            crop_x0 = max(0, int(left_m + col * col_w - pad_x))
-            crop_x1 = min(w, int(left_m + (col + 1) * col_w + pad_x))
-            crop_y0 = max(0, int(top_y + row_start * card_h - 6))
-            crop_y1 = min(h, int(top_y + (row_end + 1) * card_h + 6))
+            # Horizontal padding to give rich visual context of neighboring columns
+            pad_x = int(col_width * 0.15)
+            crop_x0 = max(0, int(left_margin + col * col_width - pad_x))
+            crop_x1 = min(w, int(left_margin + (col + 1) * col_width + pad_x))
+            crop_y0 = max(0, int(top_margin + row_start * card_height - 6))
+            crop_y1 = min(h, int(top_margin + (row_end + 1) * card_height + 6))
 
             context_crop = img.crop((crop_x0, crop_y0, crop_x1, crop_y1))
             cw, ch = context_crop.size
 
             # Target card coordinates relative to context_crop
-            t_x0 = max(2, int(left_m + col * col_w) - crop_x0)
-            t_x1 = min(cw - 2, int(left_m + (col + 1) * col_w) - crop_x0)
-            t_y0 = max(2, int(top_y + row * card_h) - crop_y0)
-            t_y1 = min(ch - 2, int(top_y + (row + 1) * card_h) - crop_y0)
+            tx0_img = int(left_margin + col * col_width)
+            tx1_img = int(left_margin + (col + 1) * col_width)
+            ty0_img = int(top_margin + row * card_height)
+            ty1_img = int(top_margin + (row + 1) * card_height)
+
+            t_x0 = max(2, tx0_img - crop_x0)
+            t_x1 = min(cw - 2, tx1_img - crop_x0)
+            t_y0 = max(2, ty0_img - crop_y0)
+            t_y1 = min(ch - 2, ty1_img - crop_y0)
 
             # Draw visual highlight around target card
             draw = ImageDraw.Draw(context_crop)
@@ -1251,7 +1231,7 @@ class OCRExtractor:
             draw.rectangle([t_x0, t_y0, t_x1, t_y1], outline=(37, 99, 235), width=4)
 
             # Top label badge identifying the selected voter
-            display_serial = serial_no if (serial_no and serial_no > 0) else (card_index + 1)
+            display_serial = serial_no if (serial_no and serial_no > 0) else (c_idx + 1)
             badge_text = f"🎯 लक्षित मतदाता — क्र. सं. {display_serial}"
             badge_w = min(260, t_x1 - t_x0 - 8)
             draw.rectangle([t_x0, t_y0, t_x0 + badge_w, t_y0 + 22], fill=(37, 99, 235))
@@ -1265,12 +1245,7 @@ class OCRExtractor:
             rescanned_result = None
             if rescan:
                 # Target card crop alone for deep OCR
-                target_card_crop = img.crop((
-                    max(0, int(left_m + col * col_w)),
-                    max(0, int(top_y + row * card_h)),
-                    min(w, int(left_m + (col + 1) * col_w)),
-                    min(h, int(top_y + (row + 1) * card_h))
-                ))
+                target_card_crop = img.crop((tx0_img, ty0_img, tx1_img, ty1_img))
                 rescanned_result = cls.rescan_single_voter_card_full(
                     card_crop=target_card_crop,
                     default_serial=display_serial,
@@ -1280,7 +1255,7 @@ class OCRExtractor:
             return {
                 "success": True,
                 "page_no": page_no,
-                "card_index": card_index,
+                "card_index": c_idx,
                 "serial_no": display_serial,
                 "crop_image_base64": f"data:image/jpeg;base64,{crop_b64}",
                 "rescanned": rescanned_result,
