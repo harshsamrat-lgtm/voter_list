@@ -53,3 +53,12 @@ Thumbs.db
 .idea/
 .github/
 
+# Secrets and environment configs
+.env
+.env.*
+*.token
+*.secret
+.admin_token
+.license_secret
+.git_secret_key
+

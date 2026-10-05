@@ -128,6 +128,49 @@ def is_public_request(request: Request) -> bool:
     return False
 
 
+SECURITY_CONFIG_FILE = DATA_DIR / "security_config.json"
+
+
+def get_security_config() -> Dict[str, Any]:
+    """Reads security configuration with safe defaults."""
+    default_cfg = {
+        "allow_local_auto_admin": True,
+        "require_auth_for_superadmin": True,
+    }
+    if SECURITY_CONFIG_FILE.exists():
+        try:
+            data = json.loads(SECURITY_CONFIG_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                default_cfg.update(data)
+        except Exception:
+            pass
+    # Environment variable overrides
+    env_auto = os.environ.get("ALLOW_LOCAL_AUTO_ADMIN", "").strip().lower()
+    if env_auto in ("0", "false", "no"):
+        default_cfg["allow_local_auto_admin"] = False
+    elif env_auto in ("1", "true", "yes"):
+        default_cfg["allow_local_auto_admin"] = True
+    return default_cfg
+
+
+def save_security_config(cfg: Dict[str, Any]) -> bool:
+    """Saves updated security configuration."""
+    try:
+        current = get_security_config()
+        current.update(cfg)
+        SECURITY_CONFIG_FILE.write_text(json.dumps(current, indent=2, ensure_ascii=False), encoding="utf-8")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save security config: {e}")
+        return False
+
+
+def is_local_auto_admin_allowed() -> bool:
+    """Returns True if unauthenticated local requests are permitted to act as local_admin."""
+    cfg = get_security_config()
+    return bool(cfg.get("allow_local_auto_admin", True))
+
+
 def verify_admin_access(request: Request):
     """
     Security Barrier:
@@ -135,7 +178,7 @@ def verify_admin_access(request: Request):
     Grants access if:
     1. Request contains a valid session token of an active Admin.
     2. Request contains a valid X-Admin-Token.
-    3. Request is from local machine (127.0.0.1 / localhost) AND user is not logged in as non-admin.
+    3. Request is from local machine (127.0.0.1 / localhost) AND local auto-admin is permitted AND user is not non-admin.
     """
     # 1. Check logged-in user session
     user = get_current_user_optional(request)
@@ -152,8 +195,8 @@ def verify_admin_access(request: Request):
     if token and token == ADMIN_TOKEN:
         return {"username": "token_admin", "role": "admin"}
 
-    # 3. Allow local machine access
-    if not is_public_request(request):
+    # 3. Allow local machine access if enabled
+    if not is_public_request(request) and is_local_auto_admin_allowed():
         return {"username": "local_admin", "role": "admin"}
 
     raise HTTPException(
@@ -166,25 +209,34 @@ def verify_superadmin_only_access(request: Request):
     """
     Security Barrier:
     Protects Nagar Panchayat Geographic Street & House Survey Audit Matching & Git OTA Publisher.
-    Accessible to Super-Admin ('harshsamrat'), admin roles, and local administrators.
+    Accessible strictly to authenticated Super-Admin ('harshsamrat') or admin role with is_superadmin flag.
+    If unauthenticated local access occurs, it is only permitted if local auto-admin is allowed
+    AND require_auth_for_superadmin is explicitly disabled in security_config.json.
     """
     user = get_current_user_optional(request)
     client_host = request.client.host if request.client else ""
     is_local = client_host in ("127.0.0.1", "localhost", "::1", "testclient")
+    cfg = get_security_config()
 
     if not user:
-        if is_local:
-            return {"username": "harshsamrat", "role": "admin", "is_superadmin": True}
+        token = request.headers.get("x-admin-token") or request.query_params.get("admin_token")
+        if token and token == ADMIN_TOKEN:
+            return {"username": "token_admin", "role": "admin", "is_superadmin": True}
+
+        if is_local and is_local_auto_admin_allowed() and not cfg.get("require_auth_for_superadmin", True):
+            return {"username": "local_admin", "role": "admin", "is_superadmin": True}
+
         raise HTTPException(
             status_code=401,
-            detail="सत्यापन आवश्यक है। कृपया लॉगिन करें।"
+            detail="सत्यापन आवश्यक है। '🚀 नया अपडेट पब्लिश करें' एवं संवेदनशील प्रशासनिक कार्यों के लिए कृपया सुपर एडमिन के रूप में लॉगिन करें।"
         )
+
     username = (user.get("username") or "").strip().lower()
     is_admin = username == "harshsamrat" or bool(user.get("is_superadmin")) or user.get("role") in ("superadmin", "admin")
-    if not is_admin and not is_local:
+    if not is_admin:
         raise HTTPException(
             status_code=403,
-            detail="पहुँच अस्वीकृत (Access Denied): '🚀 नया अपडेट पब्लिश करें' केवल एडमिनिस्ट्रेटर हेतु आरक्षित है।"
+            detail="पहुँच अस्वीकृत (Access Denied): यह कार्य केवल मुख्य एडमिनिस्ट्रेटर हेतु आरक्षित है।"
         )
     return user
 
@@ -212,7 +264,7 @@ def verify_operator_or_admin_access(request: Request):
     if token and token == ADMIN_TOKEN:
         return {"username": "token_admin", "role": "admin"}
 
-    if not is_public_request(request):
+    if not is_public_request(request) and is_local_auto_admin_allowed():
         return {"username": "local_admin", "role": "admin"}
 
     raise HTTPException(
@@ -222,7 +274,7 @@ def verify_operator_or_admin_access(request: Request):
 
 
 def is_admin_or_superadmin_request(request: Request) -> bool:
-    """Checks if current request is from an admin or root super admin (harshsamrat)."""
+    """Checks if current request is from an admin or root super admin."""
     user = get_current_user_optional(request)
     if user:
         uname = (user.get("username") or "").strip().lower()
@@ -232,6 +284,8 @@ def is_admin_or_superadmin_request(request: Request) -> bool:
         return False
     token = request.headers.get("x-admin-token") or request.query_params.get("admin_token")
     if token and token == ADMIN_TOKEN:
+        return True
+    if not is_public_request(request) and is_local_auto_admin_allowed():
         return True
     return False
 
@@ -273,8 +327,8 @@ def verify_user_access(request: Request):
     if token and token == ADMIN_TOKEN:
         return {"username": "token_admin", "role": "admin"}
 
-    # Allow local machine access
-    if not is_public_request(request):
+    # Allow local machine access if enabled
+    if not is_public_request(request) and is_local_auto_admin_allowed():
         return {"username": "local_user", "role": "user"}
 
     raise HTTPException(
@@ -290,7 +344,7 @@ app = FastAPI(
     description="मतदाता सेवा मास्टर — मतदाता सूची PDF से Excel में बदलने वाला कनवर्टर"
 )
 
-# Enable CORS for local and tunnel accessibility
+# Enable CORS for local and tunnel accessibility with explicit allowed methods and headers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -301,8 +355,21 @@ app.add_middleware(
     ],
     allow_origin_regex=r"https://.*\.trycloudflare\.com",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-Admin-Token",
+        "X-Auth-Token",
+        "X-Requested-With",
+        "Accept",
+        "Origin",
+        "Cache-Control",
+        "Pragma",
+        "X-Device-Id",
+        "X-Device-Name",
+        "X-Device-Fp",
+    ],
 )
 
 
@@ -2375,6 +2442,39 @@ def save_privacy_settings(payload: PrivacySettingsPayload):
         "message": "ऑनलाइन गोपनीयता एवं सर्च प्रतिबंध सेटिंग्स सफलतापूर्वक सुरक्षित कर दी गईं।",
         "settings": updated
     }
+
+
+# =============================================================================
+# APPLICATION SECURITY & HARDENING SETTINGS APIS
+# =============================================================================
+
+class SecuritySettingsPayload(BaseModel):
+    allow_local_auto_admin: bool = True
+    require_auth_for_superadmin: bool = True
+
+
+@app.get("/api/admin/security-settings", dependencies=[Depends(verify_admin_access)])
+def get_admin_security_settings():
+    """Returns current security hardening settings."""
+    cfg = get_security_config()
+    return {
+        "status": "success",
+        "settings": cfg
+    }
+
+
+@app.post("/api/admin/security-settings", dependencies=[Depends(verify_admin_access)])
+def update_admin_security_settings(payload: SecuritySettingsPayload):
+    """Updates security configuration such as local auto-admin and superadmin requirements."""
+    ok = save_security_config(payload.dict())
+    if not ok:
+        raise HTTPException(status_code=500, detail="सुरक्षा सेटिंग्स सहेजने में विफल।")
+    return {
+        "status": "success",
+        "message": "सुरक्षा सेटिंग्स सफलतापूर्वक अपडेट की गईं।",
+        "settings": get_security_config()
+    }
+
 
 
 # =============================================================================

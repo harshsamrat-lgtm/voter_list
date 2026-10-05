@@ -1,32 +1,27 @@
 {
-  "version": "1.0.10",
+  "version": "1.0.11",
   "app_name": "UP Voter Seva",
   "channel": "stable",
   "release_date": "2026-10-05",
   "min_required_version": "1.0.0",
   "remote_manifest_url": "https://raw.githubusercontent.com/harshsamrat-lgtm/voter_list/main/version.json",
   "update_type": "patch",
-  "title": "UP वोटर सेवा v1.0.10 अपडेट",
-  "notes": "300 DPI उच्च क्वालिटी स्कैन, लोकल AI नाम सुधार व बल्क स्कैन लाइव टाइमर",
+  "title": "UP वोटर सेवा v1.0.11 अपडेट",
+  "notes": "सुरक्षा सुदृढ़ीकरण, इंटरफेस सरलीकरण व विंडोज इंस्टॉलर",
   "changelog": [
-    "• एडिट विंडो में वास्तविक पीडीएफ से 300 DPI उच्च क्वालिटी स्कैन व प्रीव्यू",
-    "• OCR टेक्स्ट एक्सट्रैक्शन व वोटर कार्ड अलाइनमेंट में सुधार",
-    "• मतदाता का नाम व संबंधी का नाम सुधार हेतु उन्नत लोकल AI व मल्टी-पास इंजन",
-    "• हिंदी व अंग्रेजी नाम एवं संबंधों की वर्तनी का स्वतः सुधार",
-    "• बल्क स्कैनिंग में लाइव बीता समय (Elapsed) व शेष समय (ETA) का स्वचालित टाइमर",
-    "• मल्टी-कोर समानांतर प्रोसेसिंग एवं कतार प्रबंधन में सुधार",
-    "• यूजर इंटरफेस, कतार तालिका व विजुअल प्रोग्रेस संकेतकों में सुधार",
-    "• मतदाता डेटाबेस स्थिरता, तेज सर्च इंडेक्सिंग व डेटा सुरक्षा शील्ड",
-    "• विंडोज इंस्टॉलर, ऑटो-अपडेट रिलीज व इन-ऐप डिप्लॉयमेंट में सुधार",
-    "• सुरक्षा संवर्द्धन, बग फिक्स एवं समग्र सिस्टम परफॉर्मेंस सुधार"
+    "• सुरक्षा सुदृढ़ीकरण: एडमिन क्रेडेंशियल्स, डायनामिक टोकन जनरेशन, सुपरएडमिन सुरक्षा व CORS नीतियां लागू",
+    "• यूजर इंटरफेस: 'Git से अपडेट' का नाम बदलकर 'अपडेट' किया गया एवं डायलॉग लेआउट परिष्कृत",
+    "• विंडोज इंस्टॉलर: साइलेंट बैकग्राउंड लॉन्चर (.vbs) एवं इंस्टॉलर स्क्रिप्ट्स अपडेट",
+    "• सिस्टम विश्वसनीयता: ऑटोमेटेड सुरक्षा व सर्च टेस्ट सुइट का विस्तार एवं सत्यापन",
+    "• रिलीज मैनेजमेंट: वास्तविक Git Diff आधारित सटीक रिलीज नोट्स व चेंजलॉग जनरेशन"
   ],
   "patch": {
-    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.10/update-patch.zip",
+    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.11/update-patch.zip",
     "size_mb": 2.58,
-    "sha256": "5fdbb3054e72f32b8f337bc9f32cd6e9876f6ea148daa565a45fe1ef776f7753"
+    "sha256": "14fea7ee566c50ee334cc8cead246bedc9dfa13f33c0965e7de6b916ffbba2af"
   },
   "full_installer": {
-    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.10/UP_Voter_Service_Setup_v1.0.exe",
+    "url": "https://github.com/harshsamrat-lgtm/voter_list/releases/download/v1.0.11/UP_Voter_Service_Setup_v1.0.exe",
     "size_mb": 285.0,
     "sha256": ""
   }

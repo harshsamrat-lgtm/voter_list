@@ -30,7 +30,19 @@ from ..config import BASE_DIR, DATA_DIR
 
 # Master Secret Key for HMAC signature generation and verification
 # (Used to sign and verify offline & online license keys)
-_MASTER_SECRET = b"UP_VOTER_SEVA_MASTER_KEY_SECURE_2026_HMAC_AI_VOTER_SALT_99"
+# Configurable via environment variable or data/.license_secret
+_env_master = os.environ.get("VOTER_LICENSE_MASTER_SECRET", "").strip()
+_secret_file = DATA_DIR / ".license_secret"
+
+if _env_master:
+    _MASTER_SECRET = _env_master.encode("utf-8")
+elif _secret_file.exists():
+    try:
+        _MASTER_SECRET = _secret_file.read_bytes().strip()
+    except Exception:
+        _MASTER_SECRET = b"UP_VOTER_SEVA_MASTER_KEY_SECURE_2026_HMAC_AI_VOTER_SALT_99"
+else:
+    _MASTER_SECRET = b"UP_VOTER_SEVA_MASTER_KEY_SECURE_2026_HMAC_AI_VOTER_SALT_99"
 
 LICENSE_FILE = DATA_DIR / "license.enc"
 CONFIG_FILE = DATA_DIR / "license_config.json"

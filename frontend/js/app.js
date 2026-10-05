@@ -10688,7 +10688,7 @@ async function checkAppUpdates(userInitiated = false) {
             if (updateBtn) {
                 updateBtn.style.display = 'inline-flex';
                 if (updateText) {
-                    updateText.innerText = 'Git से अपडेट';
+                    updateText.innerText = 'अपडेट';
                 }
                 const dot = document.getElementById('updatePulseDot');
                 if (dot) dot.style.display = 'none';
@@ -11008,7 +11008,7 @@ async function openGitPublishModal() {
 
             if (notesInput) {
                 if (!notesInput.value || notesInput.value.trim() === '' || notesInput.dataset.autoFilled === 'true') {
-                    notesInput.value = data.default_notes || '300 DPI उच्च क्वालिटी स्कैन, लोकल AI नाम सुधार व बल्क स्कैन लाइव टाइमर';
+                    notesInput.value = data.default_notes || 'सिस्टम स्थिरता, बग फिक्स व परफॉर्मेंस सुधार';
                     notesInput.dataset.autoFilled = 'true';
                 }
                 notesInput.oninput = () => { delete notesInput.dataset.autoFilled; };
@@ -11019,10 +11019,7 @@ async function openGitPublishModal() {
                     const bullets = (data.default_changelog && Array.isArray(data.default_changelog) && data.default_changelog.length > 0)
                         ? data.default_changelog
                         : [
-                            '• एडिट विंडो में वास्तविक पीडीएफ से 300 DPI उच्च क्वालिटी स्कैन व प्रीव्यू',
-                            '• मतदाता का नाम व संबंधी का नाम सुधार हेतु उन्नत लोकल AI व मल्टी-पास इंजन',
-                            '• बल्क स्कैनिंग में लाइव बीता समय (Elapsed) व शेष समय (ETA) का स्वचालित टाइमर',
-                            '• वास्तविक पीडीएफ क्रॉप अलाइनमेंट व सुरक्षा संवर्द्धन'
+                            '• सुरक्षा संवर्द्धन, बग फिक्स एवं समग्र सिस्टम परफॉर्मेंस सुधार'
                         ];
                     clText.value = bullets.join('\n');
                     clText.dataset.autoFilled = 'true';

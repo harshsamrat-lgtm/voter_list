@@ -30,12 +30,33 @@ APP_VERSION = "1.0.1"
 HOST = "127.0.0.1"
 PORT = 8000
 
+import secrets
+
 # Security & Admin token
-# If ADMIN_TOKEN env var is not set, generate a secure random token at each startup
+# Priority:
+# 1. ADMIN_TOKEN environment variable (if explicitly set)
+# 2. Persisted unique token in data/.admin_token (keeps token stable across desktop restarts)
+# 3. Cryptographically secure random token generated on first run
+_token_file = DATA_DIR / ".admin_token"
 _env_token = os.environ.get("ADMIN_TOKEN", "").strip()
+
 if _env_token:
     ADMIN_TOKEN = _env_token
+elif _token_file.exists():
+    try:
+        ADMIN_TOKEN = _token_file.read_text(encoding="utf-8").strip()
+    except Exception:
+        ADMIN_TOKEN = ""
+    if not ADMIN_TOKEN:
+        ADMIN_TOKEN = f"admin-{secrets.token_hex(16)}"
+        try:
+            _token_file.write_text(ADMIN_TOKEN, encoding="utf-8")
+        except Exception:
+            pass
 else:
-    ADMIN_TOKEN = "admin-2cd2df6b4014"
-    print(f"[SECURITY] Using persistent ADMIN_TOKEN: {ADMIN_TOKEN}")
+    ADMIN_TOKEN = f"admin-{secrets.token_hex(16)}"
+    try:
+        _token_file.write_text(ADMIN_TOKEN, encoding="utf-8")
+    except Exception:
+        pass
 

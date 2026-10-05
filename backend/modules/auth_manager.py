@@ -3,11 +3,12 @@ Authentication and User Management Module for UP Voter Portal.
 Provides:
 1. SQLite storage for users and user_sessions in data/voters.db.
 2. Device binding and locking for regular users (One Mobile per Account).
-3. Super-admin account ('harshsamrat' / '222333') with universal device access and mobile admin privileges.
+3. Super-admin account ('harshsamrat') with universal device access and mobile admin privileges.
 4. Self-service and admin-managed password changes.
 5. User activation, deactivation, deletion, and device-lock resets.
 """
 
+import os
 import hashlib
 import secrets
 import sqlite3
@@ -22,8 +23,8 @@ from ..config import DB_PATH
 class AuthManager:
     """Manages user accounts, sessions, device bindings, and password hashing."""
 
-    DEFAULT_ADMIN_USERNAME = "harshsamrat"
-    DEFAULT_ADMIN_PASSWORD = "222333"
+    DEFAULT_ADMIN_USERNAME = os.getenv("DEFAULT_ADMIN_USERNAME", "harshsamrat")
+    DEFAULT_ADMIN_PASSWORD = os.getenv("DEFAULT_ADMIN_PASSWORD", "")
 
     @classmethod
     @contextmanager
@@ -115,7 +116,7 @@ class AuthManager:
 
     @classmethod
     def seed_default_admin(cls):
-        """Ensures the super-admin account ('harshsamrat' / '222333') exists and is active."""
+        """Ensures the super-admin account exists and is active if configured or already present."""
         with cls.get_connection() as conn:
             row = conn.execute(
                 "SELECT id, password_hash, role, status FROM users WHERE username = ?",
@@ -125,13 +126,15 @@ class AuthManager:
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             if not row:
-                # Create default admin
-                pwd_hash = cls.hash_password(cls.DEFAULT_ADMIN_PASSWORD)
-                conn.execute("""
-                    INSERT INTO users (username, password_hash, full_name, role, status, created_at, updated_at)
-                    VALUES (?, ?, ?, 'admin', 'active', ?, ?)
-                """, (cls.DEFAULT_ADMIN_USERNAME, pwd_hash, "हर्ष सम्राट (मुख्य एडमिन)", now, now))
-                conn.commit()
+                # Create default admin only if password is provided via environment or setup
+                admin_pwd = (cls.DEFAULT_ADMIN_PASSWORD or os.getenv("DEFAULT_ADMIN_PASSWORD", "")).strip()
+                if admin_pwd:
+                    pwd_hash = cls.hash_password(admin_pwd)
+                    conn.execute("""
+                        INSERT INTO users (username, password_hash, full_name, role, status, created_at, updated_at)
+                        VALUES (?, ?, ?, 'admin', 'active', ?, ?)
+                    """, (cls.DEFAULT_ADMIN_USERNAME, pwd_hash, "हर्ष सम्राट (मुख्य एडमिन)", now, now))
+                    conn.commit()
             else:
                 # Ensure admin has role='admin' and status='active'
                 if row["role"] != "admin" or row["status"] != "active":

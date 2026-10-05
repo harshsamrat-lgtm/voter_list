@@ -22,6 +22,7 @@ import zipfile
 import subprocess
 import urllib.request
 import urllib.error
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional, List
@@ -32,7 +33,21 @@ DEFAULT_REPO = "harshsamrat-lgtm/voter_list"
 VERSION_FILE = BASE_DIR / "version.json"
 DIST_DIR = BASE_DIR / "dist_output"
 GIT_TOKEN_FILE = DATA_DIR / "git_secret.enc"
-_TOKEN_SECRET = b"UP_VOTER_SEVA_GIT_TOKEN_VAULT_KEY_2026_SUPER_ADMIN_99"
+
+# Vault Secret Key for GitHub PAT encryption
+# Configurable via environment variable or data/.git_secret_key
+_env_git_sec = os.environ.get("VOTER_GIT_TOKEN_SECRET", "").strip()
+_git_sec_file = DATA_DIR / ".git_secret_key"
+
+if _env_git_sec:
+    _TOKEN_SECRET = _env_git_sec.encode("utf-8")
+elif _git_sec_file.exists():
+    try:
+        _TOKEN_SECRET = _git_sec_file.read_bytes().strip()
+    except Exception:
+        _TOKEN_SECRET = b"UP_VOTER_SEVA_GIT_TOKEN_VAULT_KEY_2026_SUPER_ADMIN_99"
+else:
+    _TOKEN_SECRET = b"UP_VOTER_SEVA_GIT_TOKEN_VAULT_KEY_2026_SUPER_ADMIN_99"
 
 
 def parse_semver(v_str: str) -> Tuple[int, int, int]:
@@ -101,11 +116,36 @@ class GitPublisher:
     @classmethod
     def generate_dynamic_release_metadata(cls) -> Tuple[str, List[str]]:
         """Dynamically inspects git status, diffs, and recent commits to automatically
-        generate customized Hindi release notes and bulleted changelog for *every* update."""
+        generate customized Hindi release notes and bulleted changelog reflecting ACTUAL changes."""
         changed_files = set()
-        recent_commit_msg = ""
+        diff_text = ""
+        commit_messages = []
+        latest_tag = ""
 
-        # 1. Inspect uncommitted / staged files
+        # 1. Identify latest git release tag
+        try:
+            latest_tag = subprocess.check_output(
+                "git describe --tags --abbrev=0", shell=True, text=True, errors="replace"
+            ).strip()
+        except Exception:
+            latest_tag = ""
+
+        # 2. Check commits made since the latest tag
+        if latest_tag:
+            try:
+                log_out = subprocess.check_output(
+                    f"git log {latest_tag}..HEAD --pretty=format:%s",
+                    shell=True, text=True, errors="replace"
+                ).strip()
+                if log_out:
+                    for line in log_out.splitlines():
+                        line = line.strip()
+                        if line and not line.lower().startswith("release v"):
+                            commit_messages.append(line)
+            except Exception:
+                pass
+
+        # 3. Inspect working tree uncommitted / staged files
         try:
             status_out = subprocess.check_output(
                 "git status --short", shell=True, text=True, errors="replace"
@@ -118,72 +158,140 @@ class GitPublisher:
         except Exception:
             pass
 
-        # 2. If working tree has few files or to capture latest commit context
+        # 4. Extract comprehensive diff text (uncommitted + committed since tag)
         try:
-            diff_out = subprocess.check_output(
-                "git diff --name-only HEAD~1 HEAD", shell=True, text=True, errors="replace"
-            ).strip()
-            if diff_out:
-                for line in diff_out.splitlines():
-                    if line.strip():
-                        changed_files.add(line.strip().replace("\\", "/").lower())
+            diff_cmd = f"git diff {latest_tag}..HEAD" if (latest_tag and commit_messages) else "git diff HEAD"
+            diff_text = subprocess.check_output(
+                diff_cmd, shell=True, text=True, errors="replace"
+            )
         except Exception:
-            pass
+            try:
+                diff_text = subprocess.check_output(
+                    "git diff", shell=True, text=True, errors="replace"
+                )
+            except Exception:
+                diff_text = ""
 
-        try:
-            recent_commit_msg = subprocess.check_output(
-                "git log -1 --pretty=%s", shell=True, text=True, errors="replace"
-            ).strip()
-        except Exception:
-            recent_commit_msg = ""
+        # Parse added lines per file to prevent cross-file keyword pollution
+        file_diffs: Dict[str, List[str]] = {}
+        curr_fn = None
+        for line in diff_text.splitlines():
+            if line.startswith("diff --git "):
+                parts = line.split()
+                if len(parts) >= 4:
+                    curr_fn = re.sub(r"^[ab]/", "", parts[3]).lower()
+                    file_diffs[curr_fn] = []
+            elif curr_fn and line.startswith("+") and not line.startswith("+++"):
+                file_diffs[curr_fn].append(line[1:])
+
+        def get_file_content(file_substr: str) -> str:
+            lines = []
+            for fn, lns in file_diffs.items():
+                if file_substr in fn:
+                    lines.extend(lns)
+            return "\n".join(lines).lower()
 
         subsystems = []
         bullets = []
 
-        # Category: OCR / High-Quality Scan
-        if any("ocr" in f or "tesseract" in f for f in changed_files):
-            subsystems.append("300 DPI उच्च क्वालिटी स्कैन")
-            bullets.append("• एडिट विंडो में वास्तविक पीडीएफ से 300 DPI उच्च क्वालिटी स्कैन व प्रीव्यू")
-            bullets.append("• OCR टेक्स्ट एक्सट्रैक्शन व वोटर कार्ड अलाइनमेंट में सुधार")
+        # --- A. COMMIT-BASED BULLETS (if developer committed with meaningful messages) ---
+        for c_msg in commit_messages:
+            clean_msg = c_msg
+            if ":" in clean_msg:
+                clean_msg = clean_msg.split(":", 1)[1].strip()
+            if clean_msg and len(clean_msg) > 3:
+                bullets.append(f"• {clean_msg}")
 
-        # Category: Local AI & Name Correction
-        if any("corrector" in f or "error" in f for f in changed_files):
+        # --- B. CONTENT-AWARE PER-FILE DIFF INSPECTION ---
+
+        # 1. Security & Hardening (main.py, auth_manager.py, config.py, license_guard.py)
+        sec_content = (
+            get_file_content("auth_manager") + "\n" +
+            get_file_content("config.py") + "\n" +
+            get_file_content("license_guard") + "\n" +
+            get_file_content("main.py")
+        )
+        sec_keywords = [
+            "security_config", "admin_token", "default_admin_password",
+            "allow_local_auto_admin", "corsmiddleware", "verify_superadmin",
+            "_master_secret", "_token_secret", "hash_password", "require_auth_for_superadmin"
+        ]
+        if any(k in sec_content for k in sec_keywords):
+            subsystems.append("सुरक्षा सुदृढ़ीकरण")
+            bullets.append("• सुरक्षा सुदृढ़ीकरण: एडमिन क्रेडेंशियल्स, डायनामिक टोकन जनरेशन, सुपरएडमिन सुरक्षा व CORS नीतियां लागू")
+
+        # 2. Bulk Metadata Edit (Part No, Assembly, Polling Station in main.py, app.js, database.py)
+        main_content = get_file_content("main.py")
+        db_content = get_file_content("database.py")
+        fe_app_content = get_file_content("app.js")
+        bulk_edit_keywords = ["update_batch_metadata", "bulk-update", "bulk_update", "batch metadata", "विधान सभा"]
+        if any(k in main_content or k in db_content or k in fe_app_content for k in bulk_edit_keywords):
+            subsystems.append("बल्क मेटाडेटा संपादन")
+            bullets.append("• बल्क डेटा संपादन: भाग संख्या, विधान सभा व मतदान केंद्र का सामूहिक संशोधन (Bulk Edit) फीचर")
+
+        # 3. UI Renaming / Labeling ("Git से अपडेट" -> "अपडेट", Modals in frontend)
+        fe_index_content = get_file_content("index.html")
+        if "अपडेट" in fe_index_content or "softwareupdatemodal" in fe_app_content or "btnupdate" in fe_index_content:
+            subsystems.append("इंटरफेस सरलीकरण")
+            bullets.append("• यूजर इंटरफेस: 'Git से अपडेट' का नाम बदलकर 'अपडेट' किया गया एवं डायलॉग लेआउट परिष्कृत")
+
+        # 4. OCR Extraction & Card Cropping (Only if ocr_extractor was touched)
+        ocr_content = get_file_content("ocr_extractor")
+        if ocr_content:
+            subsystems.append("OCR एक्सट्रैक्शन")
+            if "dpi" in ocr_content or "300" in ocr_content:
+                bullets.append("• एडिट विंडो में वास्तविक पीडीएफ से 300 DPI उच्च क्वालिटी स्कैन व प्रीव्यू")
+            bullets.append("• OCR इंजन: वोटर कार्ड टेक्स्ट एक्सट्रैक्शन, क्रॉपिंग व अलाइनमेंट में सुधार")
+
+        # 5. Local AI & Name Correction (Only if error_corrector was touched)
+        corr_content = get_file_content("error_corrector")
+        if corr_content:
             subsystems.append("लोकल AI नाम सुधार")
-            bullets.append("• मतदाता का नाम व संबंधी का नाम सुधार हेतु उन्नत लोकल AI व मल्टी-पास इंजन")
-            bullets.append("• हिंदी व अंग्रेजी नाम एवं संबंधों की वर्तनी का स्वतः सुधार")
+            bullets.append("• लोकल AI नाम सुधार: मतदाता व संबंधी के नाम की वर्तनी एवं ऑटो-करेक्शन शब्दकोश अपडेट")
 
-        # Category: Bulk Queue & Elapsed / ETA Timer
-        if any("main.py" in f or "queue" in f for f in changed_files):
-            subsystems.append("बल्क स्कैन लाइव टाइमर")
-            bullets.append("• बल्क स्कैनिंग में लाइव बीता समय (Elapsed) व शेष समय (ETA) का स्वचालित टाइमर")
-            bullets.append("• मल्टी-कोर समानांतर प्रोसेसिंग एवं कतार प्रबंधन में सुधार")
+        # 6. Elapsed / ETA Timer (Only if queue/timer code was modified)
+        if any(k in main_content for k in ["elapsed_seconds", "timer_card", "eta_seconds"]):
+            subsystems.append("बल्क स्कैन टाइमर")
+            bullets.append("• बल्क स्कैनिंग: लाइव बीता समय (Elapsed) व शेष समय (ETA) का स्वचालित टाइमर")
 
-        # Category: Frontend / UI
-        if any("frontend" in f or "app.js" in f or "index.html" in f or "style.css" in f for f in changed_files):
-            subsystems.append("यूजर इंटरफेस सुधार")
-            bullets.append("• यूजर इंटरफेस, कतार तालिका व विजुअल प्रोग्रेस संकेतकों में सुधार")
+        # 7. Database & Search (Only if database.py was touched)
+        if db_content:
+            subsystems.append("डेटाबेस व सर्च")
+            bullets.append("• मतदाता डेटाबेस: सर्च स्पीड, रिकॉर्ड स्टोरेज व डेटा निष्पादन गति में सुधार")
 
-        # Category: Database & Search
-        if any("database" in f or "db" in f or "model" in f for f in changed_files):
-            subsystems.append("डेटाबेस व तेज सर्च")
-            bullets.append("• मतदाता डेटाबेस स्थिरता, तेज सर्च इंडेक्सिंग व डेटा सुरक्षा शील्ड")
+        # 8. Export (Excel / PDF)
+        if get_file_content("excel_generator") or get_file_content("pdf_generator") or "export_excel" in main_content:
+            subsystems.append("डेटा एक्सपोर्ट")
+            bullets.append("• एक्सपोर्ट सुविधा: मतदाता सूची व पर्ची के एक्सेल एवं पीडीएफ एक्सपोर्ट फॉर्मेटिंग में सुधार")
 
-        # Category: Export (Excel / PDF)
-        if any("export" in f or "excel" in f or "pdf" in f for f in changed_files):
-            subsystems.append("एक्सेल/पीडीएफ एक्सपोर्ट")
-            bullets.append("• मतदाता सूची व मतदाता पर्ची के एक्सेल एवं पीडीएफ एक्सपोर्ट फॉर्मेटिंग में सुधार")
-
-        # Category: Cloudflare / Live Tunnel
-        if any("tunnel" in f or "cloudflare" in f for f in changed_files):
+        # 9. Cloudflare / Live Tunnel
+        if get_file_content("tunnel_service"):
             subsystems.append("क्लाउड लाइव शेयरिंग")
-            bullets.append("• सुरक्षित क्लाउड टनल व मोबाइल क्यूआर शेयरिंग कनेक्टिविटी में संवर्द्धन")
+            bullets.append("• लाइव शेयरिंग: सुरक्षित क्लाउड टनल व मोबाइल क्यूआर सर्च कनेक्टिविटी में संवर्द्धन")
 
-        # Category: Installer & Deployment
-        if any("installer" in f or "publisher" in f or ".vbs" in f or ".bat" in f for f in changed_files):
-            subsystems.append("सिस्टम इंस्टॉलर व ऑटो-अपडेट")
-            bullets.append("• विंडोज इंस्टॉलर, ऑटो-अपडेट रिलीज व इन-ऐप डिप्लॉयमेंट में सुधार")
+        # 10. Installer & Launcher
+        if any("installer" in fn or fn.endswith(".vbs") or fn.endswith(".bat") for fn in file_diffs):
+            subsystems.append("विंडोज इंस्टॉलर")
+            bullets.append("• विंडोज इंस्टॉलर: साइलेंट बैकग्राउंड लॉन्चर (.vbs) एवं इंस्टॉलर स्क्रिप्ट्स अपडेट")
 
-        # Build dynamic notes based on detected modifications
+        # 11. Automated Tests & Quality
+        if any("tests/" in fn for fn in file_diffs):
+            bullets.append("• सिस्टम विश्वसनीयता: ऑटोमेटेड सुरक्षा व सर्च टेस्ट सुइट का विस्तार एवं सत्यापन")
+
+        # 12. Auto-Update / Publisher
+        if get_file_content("git_publisher") or get_file_content("updater_guard"):
+            bullets.append("• रिलीज मैनेजमेंट: वास्तविक Git Diff आधारित सटीक रिलीज नोट्स व चेंजलॉग जनरेशन")
+
+        # Deduplicate bullets while preserving order
+        seen = set()
+        dedup_bullets = []
+        for b in bullets:
+            b_clean = b.strip()
+            if b_clean and b_clean not in seen:
+                seen.add(b_clean)
+                dedup_bullets.append(b_clean)
+
+        # Build dynamic notes/title based on detected modifications
         if len(subsystems) == 1:
             notes = f"{subsystems[0]} संवर्द्धन"
         elif len(subsystems) == 2:
@@ -191,21 +299,13 @@ class GitPublisher:
         elif len(subsystems) >= 3:
             notes = f"{subsystems[0]}, {subsystems[1]} व {subsystems[2]}"
         else:
-            if recent_commit_msg and not recent_commit_msg.lower().startswith("release"):
-                notes = recent_commit_msg
+            if commit_messages:
+                notes = commit_messages[0]
             else:
-                notes = "सिस्टम स्थिरता, परफॉर्मेंस व सुरक्षा संवर्द्धन अपडेट"
+                notes = "सिस्टम स्थिरता, बग फिक्स व परफॉर्मेंस संवर्द्धन अपडेट"
 
-        # Deduplicate bullets while preserving order
-        seen = set()
-        dedup_bullets = []
-        for b in bullets:
-            if b not in seen:
-                seen.add(b)
-                dedup_bullets.append(b)
-
-        # Always add standard stability/security bullet
-        dedup_bullets.append("• सुरक्षा संवर्द्धन, बग फिक्स एवं समग्र सिस्टम परफॉर्मेंस सुधार")
+        if not dedup_bullets:
+            dedup_bullets.append("• सुरक्षा संवर्द्धन, बग फिक्स एवं समग्र सिस्टम परफॉर्मेंस सुधार")
 
         return notes, dedup_bullets
 
