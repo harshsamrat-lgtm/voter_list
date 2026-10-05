@@ -3441,13 +3441,15 @@ class RenameDatabaseRequest(BaseModel):
 
 
 class BulkUpdatePartRequest(BaseModel):
-    current_part_no: str
+    current_part_no: Optional[str] = None
     new_assembly: Optional[str] = None
     new_assembly_name: Optional[str] = None
     new_part_no: Optional[str] = None
     current_assembly: Optional[str] = None
     new_polling_station: Optional[str] = None
     db_id: Optional[str] = None
+    source_file: Optional[str] = None
+    job_id: Optional[str] = None
 
 
 class RescanPartRequest(BaseModel):
@@ -3602,13 +3604,39 @@ def api_bulk_update_part(req: BulkUpdatePartRequest, request: Request):
         }
 
     try:
+        # In-memory sync if job_id is provided and currently active in JOBS_DB
+        if req.job_id and req.job_id in JOBS_DB:
+            job = JOBS_DB[req.job_id]
+            if req.new_part_no:
+                job.part_number = req.new_part_no
+            if target_assembly:
+                job.assembly_name = target_assembly
+            if req.new_polling_station:
+                job.polling_station = req.new_polling_station
+            if job.records:
+                for r in job.records:
+                    if req.new_part_no:
+                        r["part_no"] = req.new_part_no
+                    if target_assembly:
+                        r["assembly"] = target_assembly
+                        r["assembly_name"] = target_assembly
+                    if req.new_polling_station:
+                        r["polling_station"] = req.new_polling_station
+            if job.excel_path and os.path.exists(job.excel_path):
+                try:
+                    os.remove(job.excel_path)
+                except Exception:
+                    pass
+                job.excel_path = None
+
         res = VoterDatabase.bulk_update_assembly_part(
-            current_part_no=req.current_part_no,
+            current_part_no=req.current_part_no or "",
             new_assembly=target_assembly,
-            new_part_no=req.new_part_no,
+            new_part_no=req.new_part_no or "",
             current_assembly=req.current_assembly,
             new_polling_station=req.new_polling_station,
-            db_id=req.db_id
+            db_id=req.db_id,
+            source_file=req.source_file
         )
         if res.get("status") == "error":
             raise HTTPException(status_code=404, detail=res.get("message"))
@@ -3616,7 +3644,7 @@ def api_bulk_update_part(req: BulkUpdatePartRequest, request: Request):
         log_admin_action(
             "bulk_update_part",
             None,
-            f"Part {req.current_part_no} updated: AC='{target_assembly}', Part='{req.new_part_no}', Records={res.get('updated_count')}"
+            f"File/Part '{req.source_file or req.current_part_no}' updated: AC='{target_assembly}', Part='{req.new_part_no}', Records={res.get('updated_count')}"
         )
         return res
     except ValueError as e:

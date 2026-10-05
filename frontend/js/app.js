@@ -1743,21 +1743,26 @@ function renderBulkTable() {
             timeDisplay = item.timeTaken ? `<span style="color: #DC2626;">${escapeHtml(item.timeTaken)}</span>` : `<span style="color: #CBD5E1;">--</span>`;
         }
 
-        const downloadLink = item.jobId && item.status === 'completed'
-            ? `<a href="/api/download/${item.jobId}" target="_blank" class="btn-outline" style="padding: 3px 8px; font-size: 0.75rem; color: #059669; border-color: #A7F3D0; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="download" style="width: 12px; height: 12px;"></i> एक्सेल</a>`
-            : `<span style="color: #CBD5E1;">--</span>`;
+        let actionsHtml = `<span style="color: #CBD5E1;">--</span>`;
+        if (item.status === 'completed') {
+            const editBtn = `<button type="button" onclick="openBulkItemEditModal(${idx})" title="भाग संख्या, विधान सभा व मतदान केंद्र एडिट करें" class="btn-outline" style="padding: 3px 8px; font-size: 0.75rem; color: #6D28D9; border-color: #DDD6FE; background: #F5F3FF; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; border-radius: 6px; font-weight: 600;"><i data-lucide="edit-3" style="width: 12px; height: 12px;"></i> एडिट</button>`;
+            const dlBtn = item.jobId ? `<a href="/api/download/${item.jobId}" target="_blank" title="एक्सेल डाउनलोड" class="btn-outline" style="padding: 3px 8px; font-size: 0.75rem; color: #059669; border-color: #A7F3D0; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;"><i data-lucide="download" style="width: 12px; height: 12px;"></i> एक्सेल</a>` : '';
+            actionsHtml = `<div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">${editBtn}${dlBtn}</div>`;
+        } else if (item.status === 'pending') {
+            actionsHtml = `<button type="button" onclick="openBulkItemEditModal(${idx})" title="भाग संख्या व विधान सभा पूर्व-निर्धारित करें" class="btn-outline" style="padding: 3px 8px; font-size: 0.75rem; color: #64748B; border-color: #E2E8F0; background: #F8FAFC; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; border-radius: 6px;"><i data-lucide="edit-2" style="width: 12px; height: 12px;"></i> एडिट</button>`;
+        }
 
         return `
             <tr id="bulk-row-${idx}" style="border-bottom: 1px solid #F1F5F9; background: ${item.status === 'processing' ? '#FAF5FF' : 'transparent'};">
                 <td style="padding: 10px 12px; font-weight: 600; color: #64748B;">${idx + 1}</td>
                 <td style="padding: 10px 12px; font-weight: 500; color: #1E293B; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</td>
-                <td style="padding: 10px 12px; color: #334155;">${escapeHtml(item.assembly || '--')}</td>
-                <td style="padding: 10px 12px; font-weight: 700; color: #7C3AED;">${escapeHtml(item.part || '--')}</td>
-                <td style="padding: 10px 12px; color: #475569; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.pollingStation || '')}">${escapeHtml(item.pollingStation || '--')}</td>
+                <td onclick="openBulkItemEditModal(${idx})" style="padding: 10px 12px; color: #334155; cursor: pointer;" title="क्लिक करके विधान सभा बदलें">${escapeHtml(item.assembly || '--')}</td>
+                <td onclick="openBulkItemEditModal(${idx})" style="padding: 10px 12px; font-weight: 700; color: #7C3AED; cursor: pointer;" title="क्लिक करके भाग संख्या बदलें">${escapeHtml(item.part || '--')}</td>
+                <td onclick="openBulkItemEditModal(${idx})" style="padding: 10px 12px; color: #475569; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;" title="${escapeHtml(item.pollingStation || 'क्लिक करके मतदान स्थल बदलें')}">${escapeHtml(item.pollingStation || '--')}</td>
                 <td style="padding: 10px 12px; font-weight: 700;">${votersDisplay}</td>
                 <td style="padding: 10px 12px;">${timeDisplay}</td>
                 <td style="padding: 10px 12px;">${statusBadge}</td>
-                <td style="padding: 10px 12px; text-align: right;">${downloadLink}</td>
+                <td style="padding: 10px 12px; text-align: right;">${actionsHtml}</td>
             </tr>
         `;
     }).join('');
@@ -1780,9 +1785,19 @@ function updateBulkRowUI(idx) {
     const cells = row.children;
     if (cells && cells.length >= 9) {
         cells[2].innerText = item.assembly || '--';
+        cells[2].onclick = () => openBulkItemEditModal(idx);
+        cells[2].style.cursor = 'pointer';
+        cells[2].title = 'क्लिक करके विधान सभा बदलें';
+
         cells[3].innerText = item.part || '--';
+        cells[3].onclick = () => openBulkItemEditModal(idx);
+        cells[3].style.cursor = 'pointer';
+        cells[3].title = 'क्लिक करके भाग संख्या बदलें';
+
         cells[4].innerText = item.pollingStation || '--';
-        cells[4].title = item.pollingStation || '';
+        cells[4].title = item.pollingStation || 'क्लिक करके मतदान स्थल बदलें';
+        cells[4].onclick = () => openBulkItemEditModal(idx);
+        cells[4].style.cursor = 'pointer';
 
         let statusBadge = '';
         let timeDisplay = '<span style="color: #94A3B8;">--</span>';
@@ -1810,12 +1825,172 @@ function updateBulkRowUI(idx) {
         cells[6].innerHTML = timeDisplay;
         cells[7].innerHTML = statusBadge;
 
-        if (item.jobId && item.status === 'completed') {
-            cells[8].innerHTML = `<a href="/api/download/${item.jobId}" target="_blank" class="btn-outline" style="padding: 3px 8px; font-size: 0.75rem; color: #059669; border-color: #A7F3D0; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="download" style="width: 12px; height: 12px;"></i> एक्सेल</a>`;
-            if (window.lucide) window.lucide.createIcons();
+        let actionsHtml = `<span style="color: #CBD5E1;">--</span>`;
+        if (item.status === 'completed') {
+            const editBtn = `<button type="button" onclick="openBulkItemEditModal(${idx})" title="भाग संख्या, विधान सभा व मतदान केंद्र एडिट करें" class="btn-outline" style="padding: 3px 8px; font-size: 0.75rem; color: #6D28D9; border-color: #DDD6FE; background: #F5F3FF; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; border-radius: 6px; font-weight: 600;"><i data-lucide="edit-3" style="width: 12px; height: 12px;"></i> एडिट</button>`;
+            const dlBtn = item.jobId ? `<a href="/api/download/${item.jobId}" target="_blank" title="एक्सेल डाउनलोड" class="btn-outline" style="padding: 3px 8px; font-size: 0.75rem; color: #059669; border-color: #A7F3D0; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;"><i data-lucide="download" style="width: 12px; height: 12px;"></i> एक्सेल</a>` : '';
+            actionsHtml = `<div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">${editBtn}${dlBtn}</div>`;
+        } else if (item.status === 'pending') {
+            actionsHtml = `<button type="button" onclick="openBulkItemEditModal(${idx})" title="भाग संख्या व विधान सभा पूर्व-निर्धारित करें" class="btn-outline" style="padding: 3px 8px; font-size: 0.75rem; color: #64748B; border-color: #E2E8F0; background: #F8FAFC; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; border-radius: 6px;"><i data-lucide="edit-2" style="width: 12px; height: 12px;"></i> एडिट</button>`;
         }
+        cells[8].innerHTML = actionsHtml;
+        if (window.lucide) window.lucide.createIcons();
     }
 }
+
+// ==========================================
+// BULK ITEM EDIT MODAL CONTROLLERS
+// ==========================================
+function openBulkItemEditModal(idx) {
+    if (!bulkState || !bulkState.files || !bulkState.files[idx]) return;
+    const item = bulkState.files[idx];
+
+    const modal = document.getElementById('bulkItemEditModal');
+    if (!modal) return;
+
+    document.getElementById('editModalFileIdx').value = idx;
+    document.getElementById('editModalJobId').value = item.jobId || '';
+    document.getElementById('editModalOriginalPart').value = item.part || '';
+    document.getElementById('editModalOriginalAssembly').value = item.assembly || '';
+
+    const nameEl = document.getElementById('editModalFileName');
+    if (nameEl) nameEl.innerText = item.name || '--';
+
+    const countEl = document.getElementById('editModalVotersCount');
+    const vCount = item.votersCount || item.liveVoters || 0;
+    if (countEl) countEl.innerText = `${vCount.toLocaleString()} मतदाता`;
+
+    const partInput = document.getElementById('editModalPartNo');
+    if (partInput) partInput.value = item.part || '';
+
+    const assemblyInput = document.getElementById('editModalAssembly');
+    if (assemblyInput) assemblyInput.value = item.assembly || '';
+
+    const stationInput = document.getElementById('editModalPollingStation');
+    if (stationInput) stationInput.value = item.pollingStation || '';
+
+    modal.style.display = 'flex';
+    if (window.lucide) window.lucide.createIcons();
+
+    setTimeout(() => {
+        if (partInput) partInput.focus();
+    }, 100);
+}
+
+function closeBulkItemEditModal() {
+    const modal = document.getElementById('bulkItemEditModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function saveBulkItemEdit() {
+    const idxInput = document.getElementById('editModalFileIdx');
+    if (!idxInput || idxInput.value === '-1') return;
+    const idx = parseInt(idxInput.value, 10);
+    const item = bulkState && bulkState.files ? bulkState.files[idx] : null;
+    if (!item) {
+        showToast('फ़ाइल रिकॉर्ड नहीं मिला।', 'error');
+        return;
+    }
+
+    const partInput = document.getElementById('editModalPartNo');
+    const assemblyInput = document.getElementById('editModalAssembly');
+    const stationInput = document.getElementById('editModalPollingStation');
+    const saveBtn = document.getElementById('editModalSaveBtn');
+    const saveBtnText = document.getElementById('editModalSaveBtnText');
+
+    const newPart = partInput ? partInput.value.trim() : '';
+    const newAssembly = assemblyInput ? assemblyInput.value.trim() : '';
+    const newStation = stationInput ? stationInput.value.trim() : '';
+
+    if (!newPart && !newAssembly && !newStation) {
+        showToast('कृपया कम से कम भाग संख्या, विधान सभा या मतदान केंद्र दर्ज करें।', 'warning');
+        return;
+    }
+
+    const origPart = document.getElementById('editModalOriginalPart').value || item.part || '';
+    const origAssembly = document.getElementById('editModalOriginalAssembly').value || item.assembly || '';
+    const jobId = document.getElementById('editModalJobId').value || item.jobId || '';
+
+    // If item is already completed and in DB, update DB
+    if (item.status === 'completed') {
+        if (saveBtn) saveBtn.disabled = true;
+        if (saveBtnText) saveBtnText.innerText = 'सहेजा जा रहा है...';
+
+        try {
+            const payload = {
+                source_file: item.name,
+                job_id: jobId || undefined,
+                current_part_no: origPart || undefined,
+                current_assembly: origAssembly || undefined,
+                new_part_no: newPart || origPart || undefined,
+                new_assembly: newAssembly || origAssembly || undefined,
+                new_assembly_name: newAssembly || origAssembly || undefined,
+                new_polling_station: newStation || null,
+                db_id: (typeof dbState !== 'undefined' && dbState.selectedDbId) ? dbState.selectedDbId : 'default'
+            };
+
+            const fetchFn = typeof adminFetch === 'function' ? adminFetch : fetch;
+            const res = await fetchFn('/api/database/bulk-update-part', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.detail || 'अपडेट विफल रहा');
+            }
+
+            // Successfully updated in DB
+            item.part = newPart || origPart;
+            if (newAssembly) item.assembly = newAssembly;
+            if (newStation) item.pollingStation = newStation;
+
+            updateBulkRowUI(idx);
+
+            // Also update live strip if this was the last scanned file
+            if (elements.bulkLivePart && (bulkState.currentIndex === idx || bulkState.currentIndex === idx + 1)) {
+                elements.bulkLivePart.innerText = item.part || '--';
+            }
+            if (elements.bulkLiveAssembly && (bulkState.currentIndex === idx || bulkState.currentIndex === idx + 1)) {
+                elements.bulkLiveAssembly.innerText = item.assembly || '--';
+            }
+            if (elements.bulkLivePollingStation && (bulkState.currentIndex === idx || bulkState.currentIndex === idx + 1)) {
+                elements.bulkLivePollingStation.innerText = item.pollingStation || '--';
+            }
+
+            const affected = data.updated_count !== undefined ? data.updated_count : (data.affected_voters || 0);
+            showToast(`🎉 ${item.name}: भाग ${item.part}, विधान सभा व मतदान केंद्र सफलतापूर्वक अपडेट हो गए (${affected} मतदाता)!`, 'success');
+
+            closeBulkItemEditModal();
+
+            // Refresh background DB stats and dropdowns
+            if (typeof loadPartsForBulkUpdate === 'function') loadPartsForBulkUpdate();
+            if (typeof loadPartAnalytics === 'function') loadPartAnalytics();
+            if (typeof fetchDbStats === 'function') fetchDbStats();
+            if (typeof fetchDbRecords === 'function') fetchDbRecords();
+
+        } catch (err) {
+            showToast('त्रुटि: ' + (err.message || err), 'error');
+        } finally {
+            if (saveBtn) saveBtn.disabled = false;
+            if (saveBtnText) saveBtnText.innerText = 'सुरक्षित करें (Save Changes)';
+            if (window.lucide) window.lucide.createIcons();
+        }
+    } else {
+        // If pending, just pre-set the metadata for when it runs
+        item.part = newPart;
+        if (newAssembly) item.assembly = newAssembly;
+        if (newStation) item.pollingStation = newStation;
+        updateBulkRowUI(idx);
+        showToast(`📝 फ़ाइल '${item.name}' के लिए भाग संख्या व विधान सभा पूर्व-निर्धारित कर दी गई है!`, 'success');
+        closeBulkItemEditModal();
+    }
+}
+
+window.openBulkItemEditModal = openBulkItemEditModal;
+window.closeBulkItemEditModal = closeBulkItemEditModal;
+window.saveBulkItemEdit = saveBulkItemEdit;
 
 async function handleBulkFiles(fileList) {
     if (!fileList || fileList.length === 0) return;

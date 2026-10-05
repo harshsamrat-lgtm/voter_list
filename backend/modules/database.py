@@ -1564,17 +1564,18 @@ class VoterDatabase:
     @classmethod
     def bulk_update_assembly_part(
         cls,
-        current_part_no: str,
+        current_part_no: str = "",
         new_assembly: Optional[str] = None,
         new_part_no: str = "",
         current_assembly: Optional[str] = None,
         new_polling_station: Optional[str] = None,
         db_id: Optional[str] = None,
-        new_assembly_name: Optional[str] = None
+        new_assembly_name: Optional[str] = None,
+        source_file: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Bulk updates Assembly Constituency and Part Number for all voter records
-        belonging to a specific part in a single atomic transaction.
+        Bulk updates Assembly Constituency, Part Number, and Polling Station for all voter records
+        belonging to a specific part or source file in a single atomic transaction.
         """
         if not cls._initialized:
             cls.init_db(db_id=db_id)
@@ -1583,9 +1584,10 @@ class VoterDatabase:
         clean_new_part = str(new_part_no).strip() if new_part_no is not None else ""
         clean_new_assembly = str(new_assembly or new_assembly_name or "").strip()
         clean_new_station = str(new_polling_station).strip() if new_polling_station is not None else ""
+        clean_source_file = str(source_file).strip() if source_file else ""
 
-        if not clean_curr_part:
-            raise ValueError("वर्तमान भाग संख्या देना अनिवार्य है।")
+        if not clean_curr_part and not clean_source_file:
+            raise ValueError("वर्तमान भाग संख्या या फ़ाइल का नाम देना अनिवार्य है।")
 
         # If user didn't enter new part no, retain current part
         if not clean_new_part:
@@ -1597,21 +1599,45 @@ class VoterDatabase:
         with cls.get_connection(db_id=db_id, purpose="write") as conn:
             cursor = conn.cursor()
 
-            where_sql = "WHERE part_no = ?"
-            where_params = [clean_curr_part]
-            if current_assembly and current_assembly.strip() and current_assembly.strip() != "all":
-                where_sql += " AND assembly = ?"
-                where_params.append(current_assembly.strip())
+            where_sql = ""
+            where_params = []
+
+            # Pinpoint match by exact source_file if available
+            if clean_source_file:
+                cursor.execute(
+                    "SELECT COUNT(*) FROM voters WHERE source_file = ? OR source_file LIKE ?;",
+                    [clean_source_file, f"%{clean_source_file}"]
+                )
+                sf_count = cursor.fetchone()[0]
+                if sf_count > 0:
+                    where_sql = "WHERE (source_file = ? OR source_file LIKE ?)"
+                    where_params = [clean_source_file, f"%{clean_source_file}"]
+
+            if not where_sql and clean_curr_part:
+                where_sql = "WHERE part_no = ?"
+                where_params = [clean_curr_part]
+                if current_assembly and current_assembly.strip() and current_assembly.strip() != "all":
+                    where_sql += " AND assembly = ?"
+                    where_params.append(current_assembly.strip())
+
+            if not where_sql:
+                return {
+                    "status": "error",
+                    "updated_count": 0,
+                    "affected_voters": 0,
+                    "message": "अपडेट हेतु वैध भाग संख्या या फ़ाइल नहीं मिली।"
+                }
 
             cursor.execute(f"SELECT COUNT(*) FROM voters {where_sql};", where_params)
             matching_count = cursor.fetchone()[0]
 
             if matching_count == 0:
+                identifier = clean_curr_part or clean_source_file
                 return {
                     "status": "error",
                     "updated_count": 0,
                     "affected_voters": 0,
-                    "message": f"भाग संख्या '{clean_curr_part}' में कोई मतदाता रिकॉर्ड नहीं मिला।"
+                    "message": f"'{identifier}' के अंतर्गत कोई मतदाता रिकॉर्ड नहीं मिला।"
                 }
 
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

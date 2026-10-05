@@ -443,7 +443,7 @@
                                         <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1;">मतदाता</th>
                                         <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1; color: #2563EB;">समय लगा</th>
                                         <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1;">स्थिति</th>
-                                        <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1; text-align: right;">डाउनलोड</th>
+                                        <th style="padding: 10px 12px; border-bottom: 1px solid #CBD5E1; text-align: right; min-width: 140px;">कार्य / एक्शन</th>
                                     </tr>
                                 </thead>
                                 <tbody id="bulkQueueTableBody">
@@ -4528,6 +4528,97 @@
                             <span>🖨️ अभी प्रिंट निकालें (Print / PDF)</span>
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bulk Item Edit Modal (भाग संख्या, विधान सभा, मतदान केंद्र संपादन) -->
+        <div class="modal-overlay" id="bulkItemEditModal" style="display: none; z-index: 1060; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px);">
+            <div class="modal-dialog" style="max-width: 580px; width: 95%; max-height: 92vh; display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); border: 1.5px solid #DDD6FE;">
+                <!-- Header -->
+                <div class="modal-header" style="background: linear-gradient(135deg, #4C1D95 0%, #6D28D9 100%); color: white; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(255, 255, 255, 0.18); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="edit-3" style="width: 22px; height: 22px; color: #DDD6FE;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: white;">वोटर लिस्ट विवरण एडिट करें</h3>
+                            <p style="margin: 2px 0 0 0; font-size: 0.80rem; color: #E9D5FF;">भाग संख्या, विधान सभा व मतदान केंद्र सीधे अपडेट करें</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-icon" onclick="closeBulkItemEditModal()" style="color: white; background: rgba(255, 255, 255, 0.15); border: none; border-radius: 8px; cursor: pointer; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
+                        <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="modal-body" style="padding: 22px 24px; overflow-y: auto; background: #FAF5FF; flex: 1;">
+                    <!-- File Metadata Card -->
+                    <div style="background: white; border: 1.5px solid #E9D5FF; border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                        <div style="min-width: 200px;">
+                            <span style="font-size: 0.74rem; font-weight: 700; color: #6D28D9; text-transform: uppercase; letter-spacing: 0.5px; display: block;">📄 स्कैन की गई PDF फ़ाइल</span>
+                            <strong id="editModalFileName" style="font-size: 0.94rem; color: #1E293B; word-break: break-all;">--</strong>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.74rem; font-weight: 700; color: #15803D; text-transform: uppercase; letter-spacing: 0.5px; display: block;">👥 सुरक्षित मतदाता</span>
+                            <span id="editModalVotersCount" style="display: inline-block; background: #DCFCE7; color: #15803D; font-weight: 800; font-size: 0.88rem; padding: 3px 10px; border-radius: 6px; border: 1px solid #86EFAC;">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Hidden Inputs for Tracking -->
+                    <input type="hidden" id="editModalFileIdx" value="-1">
+                    <input type="hidden" id="editModalJobId" value="">
+                    <input type="hidden" id="editModalOriginalPart" value="">
+                    <input type="hidden" id="editModalOriginalAssembly" value="">
+
+                    <!-- Form Inputs -->
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        <!-- Part Number -->
+                        <div>
+                            <label for="editModalPartNo" style="display: flex; align-items: center; justify-content: space-between; font-size: 0.86rem; font-weight: 700; color: #334155; margin-bottom: 6px;">
+                                <span>🔢 भाग संख्या (Part Number) *</span>
+                                <span style="font-size: 0.76rem; font-weight: 500; color: #7C3AED;">अनिवार्य</span>
+                            </label>
+                            <input type="text" id="editModalPartNo" placeholder="उदा० 233" style="width: 100%; height: 42px; border-radius: 8px; border: 1.5px solid #C4B5FD; padding: 0 14px; font-size: 0.95rem; font-weight: 700; color: #4C1D95; background: white; outline: none; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                            <span style="font-size: 0.75rem; color: #64748B; margin-top: 4px; display: block;">इस फ़ाइल के सभी मतदाताओं की सही भाग संख्या</span>
+                        </div>
+
+                        <!-- Assembly Constituency -->
+                        <div>
+                            <label for="editModalAssembly" style="display: flex; align-items: center; justify-content: space-between; font-size: 0.86rem; font-weight: 700; color: #334155; margin-bottom: 6px;">
+                                <span>🏛️ विधान सभा निर्वाचन क्षेत्र (Assembly) *</span>
+                                <span style="font-size: 0.76rem; font-weight: 500; color: #7C3AED;">अनिवार्य</span>
+                            </label>
+                            <input type="text" id="editModalAssembly" placeholder="उदा० 111 - गुन्नौर" style="width: 100%; height: 42px; border-radius: 8px; border: 1.5px solid #C4B5FD; padding: 0 14px; font-size: 0.95rem; font-weight: 600; color: #1E293B; background: white; outline: none; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                            <span style="font-size: 0.75rem; color: #64748B; margin-top: 4px; display: block;">विधान सभा का नाम व क्रमांक (उदा० 111 - गुन्नौर)</span>
+                        </div>
+
+                        <!-- Polling Station -->
+                        <div>
+                            <label for="editModalPollingStation" style="display: block; font-size: 0.86rem; font-weight: 700; color: #334155; margin-bottom: 6px;">
+                                🏫 मतदान केंद्र / स्थल (Polling Station)
+                            </label>
+                            <input type="text" id="editModalPollingStation" placeholder="उदा० प्रा० पा० सदर बाजार कक्ष सं० 1" style="width: 100%; height: 42px; border-radius: 8px; border: 1.5px solid #CBD5E1; padding: 0 14px; font-size: 0.92rem; color: #1E293B; background: white; outline: none; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                            <span style="font-size: 0.75rem; color: #64748B; margin-top: 4px; display: block;">मतदान केंद्र व स्थल का नाम (पर्ची व सूची हेतु)</span>
+                        </div>
+                    </div>
+
+                    <!-- Notice banner -->
+                    <div style="margin-top: 18px; padding: 12px 14px; background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; font-size: 0.80rem; color: #92400E; display: flex; align-items: flex-start; gap: 8px; line-height: 1.4;">
+                        <i data-lucide="info" style="width: 16px; height: 16px; color: #D97706; flex-shrink: 0; margin-top: 1px;"></i>
+                        <span>सुरक्षित करते ही इस फ़ाइल से जुड़े सभी मतदाताओं के रिकॉर्ड्स डेटाबेस में तुरंत अपडेट हो जाएँगे।</span>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="modal-footer" style="padding: 16px 24px; background: white; border-top: 1px solid #E2E8F0; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-outline" onclick="closeBulkItemEditModal()" style="padding: 9px 18px; font-size: 0.88rem; font-weight: 600; border-radius: 8px;">
+                        रद्द करें
+                    </button>
+                    <button type="button" id="editModalSaveBtn" onclick="saveBulkItemEdit()" class="btn-primary" style="padding: 9px 22px; font-size: 0.90rem; font-weight: 700; border-radius: 8px; background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%); border: none; color: white; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3);">
+                        <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i>
+                        <span id="editModalSaveBtnText">सुरक्षित करें (Save Changes)</span>
+                    </button>
                 </div>
             </div>
         </div>
